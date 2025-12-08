@@ -1,0 +1,9 @@
+googlemaps
+osmnx
+networkx
+shapely
+geopandas
+pysolar
+pandas
+requests
+numpy
