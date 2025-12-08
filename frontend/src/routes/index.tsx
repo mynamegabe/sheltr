@@ -270,7 +270,7 @@ function Index() {
       <SidebarInset className="relative h-screen overflow-hidden">
         {/* Map Header Overlay */}
         <div className="absolute top-4 left-4 z-[500]">
-             <SidebarTrigger className="bg-white/90 backdrop-blur shadow-md border hover:bg-white dark:bg-neutral-800 dark:border-neutral-700 dark:hover:bg-neutral-700" />
+             <SidebarTrigger className="bg-white/90 backdrop-blur shadow-md border hover:bg-white dark:bg-neutral-200 dark:border-neutral-700 dark:hover:bg-neutral-700" />
         </div>
 
         <div className="w-full h-full bg-gray-100 dark:bg-neutral-900">
