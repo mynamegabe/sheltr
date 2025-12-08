@@ -8,6 +8,3 @@ pandas
 requests
 numpy
 python-dotenv
-fastapi[standard]
-uvicorn
-pydantic

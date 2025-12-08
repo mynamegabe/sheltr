@@ -1,3 +1,6 @@
+import json
+import hashlib
+from pathlib import Path
 import googlemaps
 import osmnx as ox
 import networkx as nx
@@ -9,10 +12,20 @@ from pysolar.solar import get_altitude, get_azimuth
 import datetime
 import math
 from typing import List, Dict, Tuple, Any
+import requests 
 
 class SunRouter:
     def __init__(self, api_key: str):
         self.gmaps = googlemaps.Client(key=api_key)
+        
+        # Configure osmnx caching
+        ox.settings.use_cache = True
+        ox.settings.cache_folder = "cache_osm"
+        ox.settings.log_console = False # Keep it quiet
+        
+        # Setup local cache for Google Routes API
+        self.cache_dir = Path("cache_data")
+        self.cache_dir.mkdir(exist_ok=True)
 
     def compute_routes_v2(self, origin: Dict, destination: Dict, intermediates: List[Dict] = None, travel_mode: str = "WALK") -> List[Dict]:
         """
@@ -20,32 +33,77 @@ class SunRouter:
         """
         url = "https://routes.googleapis.com/directions/v2:computeRoutes"
         
+        # Valid fields for Routes API v2
+        # Note: 'routes.summary' caused INVALID_ARGUMENT error, so it is removed.
+        # We need legs, duration, distanceMeters, polyline for the analysis.
+        field_mask = [
+            "routes.legs",
+            "routes.duration",
+            "routes.distanceMeters",
+            "routes.polyline",
+            "routes.description",
+            "routes.viewport",
+            "routes.warnings"
+        ]
+        
         headers = {
             "Content-Type": "application/json",
             "X-Goog-Api-Key": self.gmaps.key,
-            "X-Goog-FieldMask": "routes.legs,routes.duration,routes.distanceMeters,routes.polyline,routes.description,routes.summary,routes.viewport,routes.warnings"
+            "X-Goog-FieldMask": ",".join(field_mask)
         }
         
+        # Prepare payload
         payload = {
-            "origin": origin, # Expects {"location": {"latLng": {"latitude": x, "longitude": y}}} or {"address": "..."}
+            "origin": origin,
             "destination": destination,
             "travelMode": travel_mode,
             "polylineQuality": "HIGH_QUALITY",
-            "routingPreference": "TRAFFIC_AWARE",
             "computeAlternativeRoutes": True
         }
         
+        # Add mode-specific preferences
+        if travel_mode in ["DRIVE", "TWO_WHEELER"]:
+            payload["routingPreference"] = "TRAFFIC_AWARE"
+        
+        elif travel_mode == "TRANSIT":
+             payload["transitPreferences"] = {
+                 "routingPreference": "LESS_WALKING",
+                 "allowedTravelModes": ["TRAIN", "BUS", "SUBWAY", "LIGHT_RAIL"]
+             }
+
         if intermediates:
             payload["intermediates"] = intermediates
             
-        import requests
+        # Create a deterministic hash of the payload for caching
+        payload_str = json.dumps(payload, sort_keys=True)
+        payload_hash = hashlib.md5(payload_str.encode('utf-8')).hexdigest()
+        cache_file = self.cache_dir / f"{payload_hash}.json"
+        
+        if cache_file.exists():
+            print(f"Loading route from cache: {cache_file}")
+            try:
+                with open(cache_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"Error reading cache: {e}")
+            
+        print("Fetching routes from Google API...")
         response = requests.post(url, json=payload, headers=headers)
         
         if response.status_code != 200:
             print(f"Error fetching routes: {response.text}")
             return []
             
-        return response.json().get('routes', [])
+        routes = response.json().get('routes', [])
+        
+        # Save to cache
+        try:
+            with open(cache_file, 'w') as f:
+                json.dump(routes, f)
+        except Exception as e:
+            print(f"Error saving to cache: {e}")
+            
+        return routes
 
     def get_buildings(self, center_point: Tuple[float, float], dist: int = 1000) -> Any:
         """
@@ -147,18 +205,14 @@ class SunRouter:
         Scores routes based on shadow intersection, analyzing each step individually.
         Assumes Routes API v2 structure.
         """
-        if not shadows:
-            for route in routes_data:
-                route['shadow_score'] = 0.0
-                route['shadow_ratio'] = 0.0
-                route['steps_analysis'] = []
-            return routes_data
-
         from shapely.ops import unary_union
         import geopandas as gpd
         
         # Merge shadows
-        shadow_multipoly = unary_union(shadows)
+        if shadows:
+            shadow_multipoly = unary_union(shadows)
+        else:
+            shadow_multipoly = Polygon()
         
         scored_routes = []
         
