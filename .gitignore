@@ -4,6 +4,8 @@ bin-release/
 [Oo]bj/
 [Bb]in/
 __pycache__/
+cache_data/*.json
+cache_osm/*.json
 
 # Other files and folders
 .settings/
