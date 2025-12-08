@@ -289,18 +289,11 @@ function Index() {
             />
             <MapUpdater center={mapCenter} zoom={mapZoom} />
             
-            {routes.map((route, idx) => ({ route, idx }))
-            .sort((a, b) => {
-               // If a is selected (index == selected), it should be last (1) to be on top
-               if (a.idx === selectedRouteIndex) return 1
-               if (b.idx === selectedRouteIndex) return -1
-               return 0
-            })
-            .map(({ route, idx }) => {
+            {routes.map((route, idx) => {
                 const isSelected = selectedRouteIndex === idx;
-                const color = isSelected 
-                    ? ROUTE_COLORS[idx % ROUTE_COLORS.length] 
-                    : '#94a3b8' // slate-400
+                if (!isSelected) return null;
+
+                const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
 
                 const polyline = route.data?.polyline?.encodedPolyline;
                 if (!polyline) return null;
@@ -311,7 +304,7 @@ function Index() {
                 let startPos: [number, number] | null = null;
                 let endPos: [number, number] | null = null;
                 
-                if (isSelected && route.data?.legs?.[0]) {
+                if (route.data?.legs?.[0]) {
                     const leg = route.data.legs[0];
                     if (leg.startLocation?.latLng) {
                         startPos = [leg.startLocation.latLng.latitude, leg.startLocation.latLng.longitude];
@@ -326,17 +319,16 @@ function Index() {
                     <Polyline 
                         positions={positions}
                         color={color}
-                        weight={isSelected ? 8 : 6}
-                        opacity={isSelected ? 1.0 : 0.6}
+                        weight={8}
+                        opacity={1.0}
                         eventHandlers={{
                             click: () => {
                                 setSelectedRouteIndex(idx)
-                                // Optional: Bring to front logic is handled by sort order re-render
                             }
                         }}
                     />
                     
-                    {isSelected && startPos && (
+                    {startPos && (
                         <Marker 
                             position={startPos}
                             icon={L.divIcon({
@@ -350,7 +342,7 @@ function Index() {
                         />
                     )}
                     
-                    {isSelected && endPos && (
+                    {endPos && (
                         <Marker 
                             position={endPos}
                             icon={L.divIcon({
