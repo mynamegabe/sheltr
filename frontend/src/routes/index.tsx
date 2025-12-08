@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
-import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet'
+import { useState, useEffect } from 'react'
+import { MapContainer, TileLayer, Polyline, useMap, Marker } from 'react-leaflet'
+import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import axios from 'axios'
 import clsx from 'clsx'
@@ -10,7 +11,6 @@ import { Search, MapPin, Navigation, Sun, Clock, Ruler } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import {
   Sidebar,
@@ -25,6 +25,8 @@ import {
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar"
+import { ModeToggle } from "@/components/mode-toggle"
+import { useTheme } from "@/components/theme-provider"
 
 export const Route = createFileRoute('/')({
   component: Index,
@@ -53,9 +55,30 @@ function Index() {
   const [routes, setRoutes] = useState<any[]>([])
   const [selectedRouteIndex, setSelectedRouteIndex] = useState<number | null>(null)
   
+  // Theme management for map tiles
+  const { theme } = useTheme()
+  const [actualTheme, setActualTheme] = useState<'light' | 'dark'>('light')
+
+  useEffect(() => {
+    const root = window.document.documentElement
+    const checkTheme = () => {
+        if (root.classList.contains('dark')) {
+            setActualTheme('dark')
+        } else {
+            setActualTheme('light')
+        }
+    }
+    
+    checkTheme()
+    
+    const observer = new MutationObserver(checkTheme)
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [theme])
+  
   // Singapore Center
   const [mapCenter, setMapCenter] = useState<[number, number]>([1.296568, 103.852119]) // SMU area
-  const [mapZoom, setMapZoom] = useState(15)
+  const [mapZoom] = useState(15)
 
   const handleRoute = async () => {
     setLoading(true)
@@ -131,9 +154,9 @@ function Index() {
   return (
     <SidebarProvider>
       <Sidebar>
-        <SidebarHeader className="h-16 border-b border-sidebar-border flex flex-col justify-center px-6">
+        <SidebarHeader className="h-16 border-b border-sidebar-border flex flex-row items-center justify-between px-6">
              <div className="flex items-center gap-2">
-                <div className="flex bg-primary/10 rounded-lg p-1">
+                 <div className="flex bg-primary/10 rounded-lg p-1">
                     <Sun className="w-5 h-5 text-orange-500 fill-orange-500" />
                 </div>
                 <div className="flex flex-col">
@@ -141,6 +164,7 @@ function Index() {
                     <span className="text-[10px] text-muted-foreground leading-none">Pathfinder</span>
                 </div>
             </div>
+            <ModeToggle />
         </SidebarHeader>
         <SidebarContent>
             <SidebarGroup>
@@ -246,10 +270,10 @@ function Index() {
       <SidebarInset className="relative h-screen overflow-hidden">
         {/* Map Header Overlay */}
         <div className="absolute top-4 left-4 z-[500]">
-             <SidebarTrigger className="bg-white/90 backdrop-blur shadow-md border hover:bg-white" />
+             <SidebarTrigger className="bg-white/90 backdrop-blur shadow-md border hover:bg-white dark:bg-neutral-800 dark:border-neutral-700 dark:hover:bg-neutral-700" />
         </div>
 
-        <div className="w-full h-full bg-gray-100">
+        <div className="w-full h-full bg-gray-100 dark:bg-neutral-900">
             <MapContainer 
             center={mapCenter} 
             zoom={mapZoom} 
@@ -257,30 +281,89 @@ function Index() {
             zoomControl={false}
             >
             <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                url={actualTheme === 'dark' 
+                    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                }
             />
             <MapUpdater center={mapCenter} zoom={mapZoom} />
             
-            {routes.map((route, idx) => {
-                const color = ROUTE_COLORS[idx % ROUTE_COLORS.length]
+            {routes.map((route, idx) => ({ route, idx }))
+            .sort((a, b) => {
+               // If a is selected (index == selected), it should be last (1) to be on top
+               if (a.idx === selectedRouteIndex) return 1
+               if (b.idx === selectedRouteIndex) return -1
+               return 0
+            })
+            .map(({ route, idx }) => {
                 const isSelected = selectedRouteIndex === idx;
-                
-                if (!isSelected) return null;
+                const color = isSelected 
+                    ? ROUTE_COLORS[idx % ROUTE_COLORS.length] 
+                    : '#94a3b8' // slate-400
 
                 const polyline = route.data?.polyline?.encodedPolyline;
                 if (!polyline) return null;
                 
                 const positions = decodePolyline(polyline);
                 
+                // Get Start/End positions for Markers (Only for selected)
+                let startPos: [number, number] | null = null;
+                let endPos: [number, number] | null = null;
+                
+                if (isSelected && route.data?.legs?.[0]) {
+                    const leg = route.data.legs[0];
+                    if (leg.startLocation?.latLng) {
+                        startPos = [leg.startLocation.latLng.latitude, leg.startLocation.latLng.longitude];
+                    }
+                    if (leg.endLocation?.latLng) {
+                        endPos = [leg.endLocation.latLng.latitude, leg.endLocation.latLng.longitude];
+                    }
+                }
+                
                 return (
-                <Polyline 
-                    key={idx}
-                    positions={positions}
-                    color={color}
-                    weight={8}
-                    opacity={0.9}
-                />
+                 <div key={idx}>
+                    <Polyline 
+                        positions={positions}
+                        color={color}
+                        weight={isSelected ? 8 : 6}
+                        opacity={isSelected ? 1.0 : 0.6}
+                        eventHandlers={{
+                            click: () => {
+                                setSelectedRouteIndex(idx)
+                                // Optional: Bring to front logic is handled by sort order re-render
+                            }
+                        }}
+                    />
+                    
+                    {isSelected && startPos && (
+                        <Marker 
+                            position={startPos}
+                            icon={L.divIcon({
+                                className: 'bg-transparent',
+                                html: `<div style="background-color: white; border: 2px solid #22c55e; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                                       </div>`,
+                                iconSize: [32, 32],
+                                iconAnchor: [16, 32] 
+                            })}
+                        />
+                    )}
+                    
+                    {isSelected && endPos && (
+                        <Marker 
+                            position={endPos}
+                            icon={L.divIcon({
+                                className: 'bg-transparent',
+                                html: `<div style="background-color: white; border: 2px solid #ef4444; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                                       </div>`,
+                                iconSize: [32, 32],
+                                iconAnchor: [16, 16] 
+                            })}
+                        />
+                    )}
+                 </div>
                 )
             })}
             

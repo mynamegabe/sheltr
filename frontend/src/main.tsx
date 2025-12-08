@@ -16,13 +16,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+// Theme Provider
+import { ThemeProvider } from "@/components/theme-provider"
+
 // Render the app
 const rootElement = document.getElementById('root')!
 if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement)
   root.render(
     <StrictMode>
-      <RouterProvider router={router} />
+      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+        <RouterProvider router={router} />
+      </ThemeProvider>
     </StrictMode>,
   )
 }
