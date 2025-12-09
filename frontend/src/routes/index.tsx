@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import axios from 'axios'
 import clsx from 'clsx'
 import { Search, MapPin, Navigation, Sun, Clock, Ruler } from 'lucide-react'
+import { DateTimePicker } from "@/components/date-time"
 
 // Shadcn Components
 import { Button } from "@/components/ui/button"
@@ -51,6 +52,8 @@ const ROUTE_COLORS = [
 function Index() {
   const [origin, setOrigin] = useState('Singapore Management University, Singapore')
   const [destination, setDestination] = useState('National Museum of Singapore, Singapore')
+  const [date, setDate] = useState<Date | undefined>(new Date())
+  const [time, setTime] = useState<string>(new Date().toTimeString().slice(0, 5))
   const [loading, setLoading] = useState(false)
   const [routes, setRoutes] = useState<any[]>([])
   const [selectedRouteIndex, setSelectedRouteIndex] = useState<number | null>(null)
@@ -91,8 +94,14 @@ function Index() {
         destination,
         travel_mode: 'WALK',
         prefer_shade: true,
-        // timezone offset for Singapore
-        start_time: new Date().toISOString().replace('Z', '+08:00') 
+        start_time: (date && time) 
+          ? (() => {
+              const d = new Date(date);
+              const [h, m] = time.split(':').map(Number);
+              d.setHours(h, m, 0, 0);
+              return d.toISOString();
+            })()
+          : new Date().toISOString()
       })
       
       const data = response.data
@@ -123,7 +132,8 @@ function Index() {
   const decodePolyline = (encoded: string) => {
     if (!encoded) return []
     const poly = []
-    let index = 0, len = encoded.length
+    let index = 0
+    const len = encoded.length
     let lat = 0, lng = 0
 
     while (index < len) {
@@ -209,6 +219,17 @@ function Index() {
                                     </>
                                 )}
                             </Button>
+                            
+                            <Separator className="my-2" />
+                            
+                            <div className="space-y-2">
+                                <DateTimePicker 
+                                  date={date}
+                                  setDate={setDate}
+                                  time={time}
+                                  setTime={setTime}
+                                />
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
