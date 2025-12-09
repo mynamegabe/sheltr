@@ -141,6 +141,18 @@ function Index() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background">
+      {/* Open Sidebar Button - Only visible when panel is closed */}
+      {!isPanelOpen && (
+        <Button
+          variant="default"
+          size="icon"
+          onClick={() => setIsPanelOpen(true)}
+          className="fixed top-4 left-4 z-50 shadow-lg bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-black dark:text-white"
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+      )}
+
       {/* Map View */}
       <MapContainer
         center={mapCenter}
@@ -180,16 +192,6 @@ function Index() {
         })}
       </MapContainer>
 
-      {/* Mobile Menu Toggle */}
-      <Button
-        variant="default"
-        size="icon"
-        onClick={() => setIsPanelOpen(!isPanelOpen)}
-        className="fixed top-4 left-4 z-50 md:hidden shadow-lg bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700"
-      >
-        {isPanelOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </Button>
-
       {/* Search & Controls Panel */}
       <div
         className={`
@@ -210,7 +212,19 @@ function Index() {
                   <p className="text-sm text-muted-foreground">Singapore's shade-first navigation</p>
                 </div>
               </div>
-              <ModeToggle />
+              <div className="flex items-center gap-2">
+                <ModeToggle />
+                {/* Collapsible Toggle Button */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsPanelOpen(!isPanelOpen)}
+                  className="h-9 w-9"
+                >
+                  <X className="h-[1.2rem] w-[1.2rem]" />
+                  <span className="sr-only">Close sidebar</span>
+                </Button>
+              </div>
             </div>
 
             {/* Divider */}
@@ -223,7 +237,7 @@ function Index() {
                   <MapPin className="w-3.5 h-3.5 text-green-500" /> Origin
                 </label>
                 <Input 
-                  className="h-10"
+                  className="h-10 bg-white dark:bg-white dark:text-black"
                   value={origin}
                   onChange={(e) => setOrigin(e.target.value)}
                   placeholder="Enter origin..."
@@ -234,7 +248,7 @@ function Index() {
                   <Navigation className="w-3.5 h-3.5 text-red-500" /> Destination
                 </label>
                 <Input 
-                  className="h-10"
+                  className="h-10 bg-white dark:bg-white dark:text-black"
                   value={destination}
                   onChange={(e) => setDestination(e.target.value)}
                   placeholder="Enter destination..."
@@ -332,8 +346,8 @@ function Index() {
 
       {/* Legend (bottom right) */}
       <div className="fixed bottom-4 right-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border border-border rounded-lg p-3 z-30 shadow-lg">
-        <p className="text-xs font-medium text-muted-foreground mb-2">Shade Level</p>
-        <div className="flex flex-col gap-2 text-xs">
+        <p className="text-xs font-medium text-foreground dark:text-white mb-2">Shade Level</p>
+        <div className="flex flex-col gap-2 text-xs text-foreground dark:text-white">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full bg-green-500" />
             <span>High (&gt;50%)</span>
