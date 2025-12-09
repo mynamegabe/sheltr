@@ -8,6 +8,7 @@ from fastapi import FastAPI
 import uvicorn
 from schemas import RouteRequest
 from modules.sun_router import SunRouter
+from modules.weather_service import WeatherService
 
 load_dotenv()
 
@@ -158,6 +159,11 @@ async def get_routes(request: RouteRequest):
     
     return analyzed_routes
 
+weather_service = WeatherService()
+
+@app.get("/weather")
+async def get_weather(lat: float, lon: float):
+    return weather_service.fetch_nearby_forecasts(lat, lon)
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

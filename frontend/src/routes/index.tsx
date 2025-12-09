@@ -7,9 +7,10 @@ import 'leaflet/dist/leaflet.css'
 import axios from 'axios'
 import clsx from 'clsx'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Search, MapPin, Navigation, Sun, Clock, Ruler, ArrowUpDown, Bus, Footprints, Train, TramFront } from 'lucide-react'
+import { Search, MapPin, Navigation, Sun, Clock, Ruler, ArrowUpDown, Bus, Footprints, Train, TramFront} from 'lucide-react'
 import { DateTimePicker } from "@/components/date-time"
 import { RouteSteps } from "@/components/route-steps"
+import { WeatherForecast } from '../components/weather-forecast'
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -240,6 +241,8 @@ function Index() {
         return poly
     }
 
+    const [originCoords, setOriginCoords] = useState<{lat: number, lon: number} | null>(null);
+    
     return (
         <SidebarProvider>
             <Sidebar>
@@ -268,10 +271,21 @@ function Index() {
                                         <PlacesAutocomplete
                                             className="bg-background"
                                             defaultValue={origin}
-                                            onPlaceSelect={(place) => setOrigin(place.address)}
+                                            onPlaceSelect={(place) => 
+                                                {setOrigin(place.address);
+                                                if (place.latLng) {
+                                                setOriginCoords({ 
+                                                    lat: place.latLng.lat, 
+                                                    lon: place.latLng.lng 
+                                                });
+                                                }
+                                                }}
                                             placeholder="Enter origin..."
                                             showCurrentLocation={true}
-                                            onCurrentLocationSelect={() => setOrigin("My Location")}
+                                            onCurrentLocationSelect={() => {
+                                                setOrigin("My Location");
+                                            setOriginCoords(null);
+                                            }}
                                         />
                                     </div>
 
@@ -473,6 +487,8 @@ function Index() {
                     )}
                 </SidebarContent>
             </Sidebar>
+
+            <WeatherForecast overrideCoords={originCoords} />
 
             <SidebarInset className="relative h-screen overflow-hidden">
                 <FloatingTrigger />
