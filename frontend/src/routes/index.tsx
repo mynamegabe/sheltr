@@ -250,8 +250,8 @@ function Index() {
                             <Sun className="w-5 h-5 text-orange-500 fill-orange-500" />
                         </div>
                         <div className="flex flex-col">
-                            <span className="font-bold tracking-tight leading-none">SunRouter</span>
-                            <span className="text-[10px] text-muted-foreground leading-none">Pathfinder</span>
+                            <span className="font-bold tracking-tight leading-none">Sheltr</span>
+                            <span className="text-[10px] text-muted-foreground leading-none">Accessibility-focused pathfinder</span>
                         </div>
                     </div>
                     <ModeToggle />
@@ -429,7 +429,13 @@ function Index() {
                                             return (
                                                 <SidebarMenuItem key={originalIndex}>
                                                     <button
-                                                        onClick={() => setSelectedRouteIndex(originalIndex)}
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                setSelectedRouteIndex(null)
+                                                            } else {
+                                                                setSelectedRouteIndex(originalIndex)
+                                                            }
+                                                        }}
                                                         className={clsx(
                                                             "w-full text-left rounded-lg border p-3 transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                                                             isSelected ? "bg-sidebar-accent border-primary/50 shadow-sm" : "bg-transparent border-transparent"
@@ -474,7 +480,10 @@ function Index() {
 
                 {selectedRouteIndex !== null && routes[selectedRouteIndex] && (
                     <div className="absolute top-0 left-0 bottom-0 z-[5] h-full shadow-2xl animate-in slide-in-from-left-10 fade-in duration-300">
-                        <RouteSteps route={routes[selectedRouteIndex]} />
+                        <RouteSteps 
+                            route={routes[selectedRouteIndex]} 
+                            onClose={() => setSelectedRouteIndex(null)}
+                        />
                     </div>
                 )}
 

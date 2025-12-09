@@ -1,15 +1,17 @@
 
 
 import { useState, useMemo } from "react"
-import { Clock, Navigation, MapPin, Footprints, Bus, Train, TramFront, Layers, List } from "lucide-react"
+import { Clock, Navigation, MapPin, Footprints, Bus, Train, TramFront, Layers, List, ChevronLeft } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 
 interface RouteStepsProps {
     route: any // Using specific type if available, but any for now as route structure varies
+    onClose?: () => void
 }
 
-export function RouteSteps({ route }: RouteStepsProps) {
+export function RouteSteps({ route, onClose }: RouteStepsProps) {
     if (!route || !route.data || !route.data.legs || route.data.legs.length === 0) {
         return null
     }
@@ -97,15 +99,23 @@ export function RouteSteps({ route }: RouteStepsProps) {
     return (
         <div className="w-80 h-full bg-background text-foreground border-r flex flex-col shadow-sm z-10">
             <div className="p-4 border-b bg-muted/20 space-y-3">
-                <div>
-                    <h3 className="font-semibold text-lg flex items-center gap-2">
-                        <Navigation className="w-5 h-5" />
-                        Route Details
-                    </h3>
-                    <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {leg.staticDuration ? formatDuration(leg.staticDuration) : route.duration}</span>
-                        <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {leg.distanceMeters ? formatDistance(leg.distanceMeters) : route.distance}</span>
+                <div className="flex items-start justify-between">
+                    <div>
+                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                            <Navigation className="w-5 h-5" />
+                            Route Details
+                        </h3>
+                        <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {leg.staticDuration ? formatDuration(leg.staticDuration) : route.duration}</span>
+                            <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {leg.distanceMeters ? formatDistance(leg.distanceMeters) : route.distance}</span>
+                        </div>
                     </div>
+                    {onClose && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={onClose}>
+                            <ChevronLeft className="w-4 h-4" />
+                            <span className="sr-only">Close</span>
+                        </Button>
+                    )}
                 </div>
 
                 <div className="flex items-center space-x-2">
