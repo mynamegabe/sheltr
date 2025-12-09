@@ -26,6 +26,30 @@ class SunRouter:
         # Setup local cache for Google Routes API
         self.cache_dir = Path("cache_data")
         self.cache_dir.mkdir(exist_ok=True)
+        
+        # Load Covered Linkways
+        try:
+            import geopandas as gpd
+            # Assuming relative path from where main.py is run
+            shapefile_path = Path("data/CoveredLinkWay_Aug2025/CoveredLinkWay.shp")
+            if shapefile_path.exists():
+                print(f"Loading covered linkways from {shapefile_path}...")
+                self.shelters = gpd.read_file(shapefile_path)
+                if self.shelters.crs is None:
+                    self.shelters.set_crs(epsg=3414, inplace=True) # SVY21 for Singapore data usually
+                
+                # Project to 3857 for analysis
+                self.shelters_3857 = self.shelters.to_crs(epsg=3857)
+                
+                # Create a single unified polygon for faster checking (optional, might be slow to union all)
+                # Instead, we keep them as a GeoSeries or create a spatial index (sindex is auto created by gpd)
+                print("Covered linkways loaded.")
+            else:
+                print("Covered linkway dataset not found.")
+                self.shelters_3857 = None
+        except Exception as e:
+            print(f"Error loading covered linkways: {e}")
+            self.shelters_3857 = None
 
     def compute_routes_v2(self, origin: Dict, destination: Dict, intermediates: List[Dict] = None, travel_mode: str = "WALK") -> List[Dict]:
         """
@@ -216,6 +240,9 @@ class SunRouter:
         else:
             shadow_multipoly = Polygon()
         
+        # Use GeoDataFrame for spatial join with shelters if available
+        shelters_gdf = self.shelters_3857 if hasattr(self, 'shelters_3857') and self.shelters_3857 is not None else None
+            
         scored_routes = []
         
         for route in routes_data:
@@ -224,8 +251,12 @@ class SunRouter:
             
             total_length_m = 0.0
             total_shadow_length_m = 0.0
+            total_sheltered_length_m = 0.0
             total_walk_length_m = 0.0
             total_walk_shadow_length_m = 0.0
+            total_walk_sheltered_length_m = 0.0
+            
+            route_sheltered_segments = []
             
             # Iterate through legs and steps
             for leg in legs:
@@ -242,28 +273,92 @@ class SunRouter:
                          continue
                          
                      step_coords = [(pt['lng'], pt['lat']) for pt in decoded]
+                     
+                     if len(step_coords) < 2:
+                         continue
+                         
                      step_line_4326 = LineString(step_coords)
                      
                      # Project step to 3857
                      line_gdf = gpd.GeoDataFrame(geometry=[step_line_4326], crs="EPSG:4326")
                      line_gdf_3857 = line_gdf.to_crs(epsg=3857)
                      step_line_3857 = line_gdf_3857.geometry[0]
-                     
                      step_length = step_line_3857.length
+
+                     # 1. Shadow Intersection
                      intersection = step_line_3857.intersection(shadow_multipoly)
                      shadow_len = intersection.length
                      
+                     # 2. Shelter Intersection (Linkways)
+                     sheltered_len = 0.0
+                     if shelters_gdf is not None:
+                         # Use spatial index to find candidate shelters quickly
+                         possible_matches_index = list(shelters_gdf.sindex.query(step_line_3857, predicate="intersects"))
+                         possible_matches = shelters_gdf.iloc[possible_matches_index]
+                         precise_matches = possible_matches[possible_matches.intersects(step_line_3857)]
+                         if not precise_matches.empty:
+                             # Union of all intersecting shelters
+                             shelter_union = precise_matches.geometry.unary_union
+                             shelter_intersection = step_line_3857.intersection(shelter_union)
+                             sheltered_len = shelter_intersection.length
+                             
+                             # Extract geometry for visualization (only for walking steps)
+                             if not shelter_intersection.is_empty and step.get('travelMode') == 'WALK':
+                                 # Convert back to 4326
+                                 si_gdf = gpd.GeoSeries([shelter_intersection], crs="EPSG:3857").to_crs(epsg=4326)
+                                 si_geom = si_gdf[0]
+                                 
+                                 geoms_to_add = []
+                                 if si_geom.geom_type == 'MultiLineString':
+                                     geoms_to_add.extend(list(si_geom.geoms))
+                                 elif si_geom.geom_type == 'LineString':
+                                     geoms_to_add.append(si_geom) # Add checking for geom collection if needed
+                                 elif si_geom.geom_type == 'GeometryCollection':
+                                     for g in si_geom.geoms:
+                                          if g.geom_type in ['LineString', 'MultiLineString']:
+                                              if g.geom_type == 'MultiLineString':
+                                                   geoms_to_add.extend(list(g.geoms))
+                                              else:
+                                                   geoms_to_add.append(g)
+
+                                 for g in geoms_to_add:
+                                     coords = list(g.coords)
+                                     # googlemaps expects [{lat, lng}, ...]
+                                     path_dicts = [{"lat": lat, "lng": lng} for lng, lat in coords]
+                                     if len(path_dicts) >= 2:
+                                         encoded = googlemaps.convert.encode_polyline(path_dicts)
+                                         route_sheltered_segments.append(encoded)
+
+                     # Combine shadow + shelter (don't double count overlap)
+                     # Logic: If it's sheltered, it's effectively "shaded" from sun (and rain).
+                     # But physically, it might be both shaded by building AND a shelter.
+                     # We care about "protected from sun".
+                     # So effective protection = union of shadow and shelter.
+                     # However, to avoid complex unioning of huge polygons again, we can approximate:
+                     # Protected % = max(shadow_ratio, sheltered_ratio) is naive.
+                     # Better: Union the geometries if possible.
+                     
+                     # Let's do a proper union for the step
+                     if shelters_gdf is not None and not precise_matches.empty:
+                         combined_protection = shadow_multipoly.union(shelter_union)
+                         total_protection_intersection = step_line_3857.intersection(combined_protection)
+                         effective_protection_len = total_protection_intersection.length
+                     else:
+                         effective_protection_len = shadow_len # Only shadow
+                     
                      ratio = 0.0
                      if step_length > 0:
-                         ratio = shadow_len / step_length
+                         ratio = effective_protection_len / step_length
                          
                      total_length_m += step_length
-                     total_shadow_length_m += shadow_len
+                     total_shadow_length_m += effective_protection_len # Treating "shadow_length" as "protected_length" now
+                     total_sheltered_length_m += sheltered_len
 
                      # Filter for walking only metrics
                      if step.get('travelMode') == 'WALK':
                          total_walk_length_m += step_length
-                         total_walk_shadow_length_m += shadow_len
+                         total_walk_shadow_length_m += effective_protection_len
+                         total_walk_sheltered_length_m += sheltered_len
                      
                      # Instructions in v2 are under navigationInstruction
                      instruction = step.get('navigationInstruction', {}).get('instructions', 'Unknown Step')
@@ -274,7 +369,8 @@ class SunRouter:
                          'distance_text': dist_text,
                          'shadow_ratio': ratio,
                          'length_m': step_length,
-                         'shadow_length_m': shadow_len,
+                         'shadow_length_m': effective_protection_len,
+                         'sheltered_length_m': sheltered_len,
                          'travel_mode': step.get('travelMode')
                      })
             
@@ -300,9 +396,11 @@ class SunRouter:
                 'distance': f"{distance_meters} m",
                 'shadow_ratio': total_ratio,
                 'shadow_length_m': total_shadow_length_m,
+                'sheltered_length_m': total_sheltered_length_m,
                 'total_length_m': total_length_m,
                 'exposed_distance_m': exposed_distance_m,
                 'steps_analysis': steps_analysis,
+                'sheltered_segments': route_sheltered_segments, # List of encoded polylines
                 'data': route
             })
             

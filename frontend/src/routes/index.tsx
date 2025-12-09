@@ -413,7 +413,7 @@ function Index() {
                                             <SelectContent>
                                                 <SelectItem value="time" className="text-xs">Time</SelectItem>
                                                 <SelectItem value="distance" className="text-xs">Distance</SelectItem>
-                                                <SelectItem value="shade" className="text-xs">Shade %</SelectItem>
+                                                <SelectItem value="shade" className="text-xs">Protected %</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -452,7 +452,7 @@ function Index() {
                                                                     route.shadow_ratio > 0.2 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
                                                                         "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                                                             )}>
-                                                                {(route.shadow_ratio * 100).toFixed(0)}% Shade • {(route.exposed_distance_m ?? 0).toFixed(0)}m exposed
+                                                                {(route.shadow_ratio * 100).toFixed(0)}% Protected • {(route.exposed_distance_m ?? 0).toFixed(0)}m exposed
                                                             </span>
                                                         </div>
                                                         <div className="flex gap-3 text-xs text-muted-foreground mb-1">
@@ -589,6 +589,8 @@ function Index() {
 
                                             if (!IconComponent) return null
 
+
+
                                             const iconHtml = renderToStaticMarkup(
                                                 <div style={{
                                                     backgroundColor: 'white',
@@ -618,6 +620,18 @@ function Index() {
                                                 />
                                             )
                                         })}
+
+                                        {/* Sheltered Path Overlay */}
+                                        {route.sheltered_segments && route.sheltered_segments.map((encoded: string, sIdx: number) => (
+                                            <Polyline
+                                                key={`sheltered-${sIdx}`}
+                                                positions={decodePolyline(encoded)}
+                                                color="#06b6d4" // Cyan-500
+                                                weight={6}
+                                                opacity={0.9}
+                                                lineCap="round"
+                                            />
+                                        ))}
 
                                         {startPos && (
                                             <Marker
