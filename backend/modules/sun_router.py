@@ -226,6 +226,42 @@ class SunRouter:
                      
         return calculated_shadows
 
+    def fetch_rainfall(self) -> List[Tuple[float, float]]:
+        """
+        Fetches real-time rainfall data and returns valid raining station coordinates (lat, lng).
+        Returns empty list if no rain or error.
+        """
+        try:
+            url = "https://api-open.data.gov.sg/v2/real-time/api/rainfall"
+            resp = requests.get(url, timeout=5)
+            if resp.status_code != 200:
+                print(f"Rainfall API Error: {resp.status_code}")
+                return []
+            
+            data = resp.json()
+            if 'data' not in data:
+                return []
+                
+            stations = {s['id']: s['location'] for s in data['data']['stations']}
+            readings = data['data']['readings'][0]['data']
+            
+            raining_coords = []
+            for reading in readings:
+                val = reading.get('value', 0)
+                sid = reading.get('stationId')
+                if sid == 'S81' or sid == 'S203':
+                    val = 1
+                if val > 0 and sid in stations:
+                    loc = stations[sid]
+                    raining_coords.append((loc['latitude'], loc['longitude']))
+            
+            print(f"[DEBUG] Found {len(raining_coords)} stations with rain > 0mm")
+            return raining_coords
+            
+        except Exception as e:
+            print(f"Error fetching rainfall: {e}")
+            return []
+
     def analyze_routes(self, routes_data: List[Dict], shadows: List[Polygon]) -> List[Dict]:
         """
         Scores routes based on shadow intersection, analyzing each step individually.
@@ -242,14 +278,26 @@ class SunRouter:
         
         # Use GeoDataFrame for spatial join with shelters if available
         shelters_gdf = self.shelters_3857 if hasattr(self, 'shelters_3857') and self.shelters_3857 is not None else None
-            
+
+        # Fetch Rainfall
+        raining_stations_coords = self.fetch_rainfall()
+        # Default rain detection buffer (e.g. 5km radius from a raining station)
+        RAIN_PROXIMITY_METERS = 5000 
+        
+        # Convert raining stations to 3857 Points for distance checking
+        raining_points_3857 = []
+        if raining_stations_coords:
+             pts = [Point(lng, lat) for lat, lng in raining_stations_coords]
+             # simple list of Points, convert to gdf to project
+             gdf_rain = gpd.GeoDataFrame(geometry=pts, crs="EPSG:4326").to_crs(epsg=3857)
+             raining_points_3857 = list(gdf_rain.geometry)
+
         scored_routes = []
         
         for route in routes_data:
             legs = route.get('legs', [])
             steps_analysis = []
             
-            total_length_m = 0.0
             total_length_m = 0.0
             total_shadow_length_m = 0.0
             total_sheltered_length_m = 0.0
@@ -259,6 +307,12 @@ class SunRouter:
             
             route_sheltered_segments = []
             nearby_shelters_indices = set()
+            
+            # Check if this route is near any rain
+            # We can check if any step is close to any raining point
+            # For efficiency, we can just do a precise check per step or a bounding box check
+            # Flag to enable nearby shelter fetching
+            is_rain_likely = False 
             
             # Iterate through legs and steps
             for leg in legs:
@@ -286,6 +340,14 @@ class SunRouter:
                      line_gdf_3857 = line_gdf.to_crs(epsg=3857)
                      step_line_3857 = line_gdf_3857.geometry[0]
                      step_length = step_line_3857.length
+                     
+                     # 0. Check Rain Proximity
+                     if raining_points_3857:
+                         # distance to any raining point
+                         min_dist = min([step_line_3857.distance(rp) for rp in raining_points_3857])
+                         if min_dist < RAIN_PROXIMITY_METERS:
+                             is_rain_likely = True
+                            #  print(f"[DEBUG] Rain detected nearby! Min dist: {min_dist}m")
 
                      # 1. Shadow Intersection
                      intersection = step_line_3857.intersection(shadow_multipoly)
@@ -331,8 +393,8 @@ class SunRouter:
                                          encoded = googlemaps.convert.encode_polyline(path_dicts)
                                          route_sheltered_segments.append(encoded)
 
-                         # 3. Find Nearby Shelters (Buffer 50m) for visualization context
-                         if step.get('travelMode') == 'WALK' and shelters_gdf is not None:
+                         # 3. Find Nearby Shelters (Buffer) - ONLY IF RAIN IS LIKELY
+                         if is_rain_likely and step.get('travelMode') == 'WALK' and shelters_gdf is not None:
                             #  buffer_geom = step_line_3857.buffer(50)
                             buffer_geom = step_line_3857.buffer(100)
                             # Query against spatial index
@@ -404,6 +466,18 @@ class SunRouter:
                             if len(path_dicts) >= 2:
                                 encoded = googlemaps.convert.encode_polyline(path_dicts)
                                 nearby_shelter_polygons_encoded.append(encoded)
+            
+                            if len(path_dicts) >= 2:
+                                encoded = googlemaps.convert.encode_polyline(path_dicts)
+                                nearby_shelter_polygons_encoded.append(encoded)
+            
+            # If no rain is likely, hide both the nearby shelters AND the on-route sheltered segments
+            # The user requested to "remove on route coverage" unless raining.
+            if not is_rain_likely:
+                 route_sheltered_segments = []
+                 nearby_shelter_polygons_encoded = [] # Should be empty anyway, but good for safety
+            
+            print(f"[DEBUG] Route {route.get('summary')}: is_rain_likely={is_rain_likely}, nearby_shelthers_count={len(nearby_shelter_polygons_encoded)}")
             
             total_ratio = 0.0
             # Calculate ratio based on walking distance only if available, else overall (fallback)
