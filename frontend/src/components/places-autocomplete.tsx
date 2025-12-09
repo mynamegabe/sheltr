@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover";
-import { MapPin, Search, Loader2 } from "lucide-react";
+import { MapPin, Search, Loader2, Navigation } from "lucide-react";
 import { useGoogleMaps } from "@/hooks/use-google-maps";
 import { cn } from "@/lib/utils";
 
@@ -10,9 +10,18 @@ interface PlacesAutocompleteProps {
     onPlaceSelect: (place: { address: string, latLng: { lat: number, lng: number } }) => void;
     defaultValue?: string;
     className?: string;
+    showCurrentLocation?: boolean;
+    onCurrentLocationSelect?: () => void;
 }
 
-export function PlacesAutocomplete({ placeholder, onPlaceSelect, defaultValue = "", className }: PlacesAutocompleteProps) {
+export function PlacesAutocomplete({
+    placeholder,
+    onPlaceSelect,
+    defaultValue = "",
+    className,
+    showCurrentLocation,
+    onCurrentLocationSelect
+}: PlacesAutocompleteProps) {
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
     const { isLoaded } = useGoogleMaps(apiKey);
 
@@ -66,7 +75,8 @@ export function PlacesAutocomplete({ placeholder, onPlaceSelect, defaultValue = 
             fetchSuggestions(val);
         } else {
             setSuggestions([]);
-            setOpen(false);
+            // Keep open if showCurrentLocation is true
+            setOpen(!!showCurrentLocation);
         }
     };
 
@@ -101,6 +111,14 @@ export function PlacesAutocomplete({ placeholder, onPlaceSelect, defaultValue = 
         }
     };
 
+    const handleCurrentLocationClick = () => {
+        setInputValue("My Location");
+        setOpen(false);
+        if (onCurrentLocationSelect) {
+            onCurrentLocationSelect();
+        }
+    };
+
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverAnchor asChild>
@@ -111,7 +129,9 @@ export function PlacesAutocomplete({ placeholder, onPlaceSelect, defaultValue = 
                         placeholder={placeholder}
                         className="pr-8 bg-background"
                         // Handle focus to open suggestions if exists
-                        onFocus={() => { if (suggestions.length > 0) setOpen(true) }}
+                        onFocus={() => {
+                            if (suggestions.length > 0 || showCurrentLocation) setOpen(true)
+                        }}
                     />
                     <div className="absolute right-2.5 top-2.5 text-muted-foreground pointer-events-none">
                         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
@@ -124,6 +144,16 @@ export function PlacesAutocomplete({ placeholder, onPlaceSelect, defaultValue = 
                 onOpenAutoFocus={(e) => e.preventDefault()}
             >
                 <ul className="py-1 max-h-[300px] overflow-y-auto">
+                    {showCurrentLocation && (
+                        <li
+                            onClick={handleCurrentLocationClick}
+                            className="px-3 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground flex items-center gap-2 transition-colors border-b border-border/50 text-blue-600 dark:text-blue-400 font-medium"
+                        >
+                            <Navigation className="w-4 h-4 fill-current" />
+                            <span>Use Current Location</span>
+                        </li>
+                    )}
+
                     {suggestions.map((suggestion, idx) => {
                         const mainText = suggestion.placePrediction.text.text;
                         return (

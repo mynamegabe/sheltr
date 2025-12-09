@@ -60,6 +60,8 @@ class SunRouter:
             "polylineQuality": "HIGH_QUALITY",
             "computeAlternativeRoutes": True
         }
+
+        print(payload)
         
         # Add mode-specific preferences
         if travel_mode in ["DRIVE", "TWO_WHEELER"]:

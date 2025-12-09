@@ -90,8 +90,15 @@ async def get_routes(request: RouteRequest):
     # duplicating the logic of find_shadiest_path BUT with correct parameters.
     
     # 1. Fetch Routes
-    origin_obj = {"address": request.origin}
-    dest_obj = {"address": request.destination}
+    if type(request.origin) == str:
+        origin_obj = {"address": request.origin}
+    else:
+        origin_obj = request.origin
+    
+    if type(request.destination) == str:
+        dest_obj = {"address": request.destination}
+    else:
+        dest_obj = request.destination
     
     # Manually construct payload mods?? No, compute_routes_v2 handles most.
     # But compute_routes_v2 signature: (origin, dest, intermediates, travel_mode)

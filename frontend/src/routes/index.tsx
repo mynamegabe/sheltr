@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
+import { useGeolocated } from 'react-geolocated'
 import { MapContainer, TileLayer, Polyline, useMap, Marker } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -76,8 +77,8 @@ function FloatingTrigger() {
 }
 
 function Index() {
-    const [origin, setOrigin] = useState('Singapore Management University, Singapore')
-    const [destination, setDestination] = useState('National Museum of Singapore, Singapore')
+    const [origin, setOrigin] = useState<string | undefined>()
+    const [destination, setDestination] = useState<string | undefined>()
     const [date, setDate] = useState<Date | undefined>(new Date())
     const [time, setTime] = useState<string>(new Date().toTimeString().slice(0, 5))
     const [loading, setLoading] = useState(false)
@@ -140,15 +141,32 @@ function Index() {
     const [mapCenter, setMapCenter] = useState<[number, number]>([1.296568, 103.852119]) // SMU area
     const [mapZoom] = useState(15)
 
+    const { coords } = useGeolocated({
+        positionOptions: {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 5000,
+        },
+        userDecisionTimeout: 5000,
+        watchPosition: true,
+    });
+
     const handleRoute = async () => {
         setLoading(true)
         setRoutes([])
         setSelectedRouteIndex(null)
 
         try {
-            const response = await axios.post('http://localhost:8000/routes', {
-                origin,
-                destination,
+            const response = await axios.post('http://192.168.1.127:8000/routes', {
+                origin: (origin === "My Location" && coords) ? {
+                    "location": {
+                        "latLng": {
+                            "latitude": coords.latitude,
+                            "longitude": coords.longitude
+                        },
+                    }
+                } : origin,
+                destination: (destination === "My Location" && coords) ? `${coords.latitude},${coords.longitude}` : destination,
                 travel_mode: travelMode,
                 transit_preferences: travelMode === 'TRANSIT' ? {
                     allowed_travel_modes: allowedTransitModes.length > 0 ? allowedTransitModes : undefined,
@@ -252,6 +270,8 @@ function Index() {
                                             defaultValue={origin}
                                             onPlaceSelect={(place) => setOrigin(place.address)}
                                             placeholder="Enter origin..."
+                                            showCurrentLocation={true}
+                                            onCurrentLocationSelect={() => setOrigin("My Location")}
                                         />
                                     </div>
 
@@ -620,6 +640,23 @@ function Index() {
                                     </div>
                                 )
                             })}
+
+                            {coords && (
+                                <Marker
+                                    position={[coords.latitude, coords.longitude]}
+                                    icon={L.divIcon({
+                                        className: 'bg-transparent',
+                                        html: renderToStaticMarkup(
+                                            <div className="relative flex items-center justify-center w-8 h-8">
+                                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"></span>
+                                                <span className="relative inline-flex h-4 w-4 rounded-full bg-blue-500 border-2 border-white shadow-lg"></span>
+                                            </div>
+                                        ),
+                                        iconSize: [32, 32],
+                                        iconAnchor: [16, 16]
+                                    })}
+                                />
+                            )}
 
                         </MapContainer>
                     </div>
