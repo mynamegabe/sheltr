@@ -890,34 +890,37 @@ function Index() {
                 );
                 const pinColor = reportType?.color ?? "#f59e0b"; // fallback color
                 const reportIconHtml = `
-                                    <div style="
-                                        position: relative;
-                                        width: 40px;
-                                        height: 50px;
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                    ">
-                                        <div style="
-                                            position: absolute;
-                                            width: 40px;
-                                            height: 40px;
-                                            background: white;
-                                            border-radius: 50% 50% 50% 0;
-                                            transform: rotate(-45deg);
-                                            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-                                            border: 4px solid ${pinColor}; /* COLORED BORDER */
-                                        "></div>
-                                        <div style="
-                                            position: relative;
-                                            z-index: 1;
-                                            font-size: 20px;
-                                            display: flex;
-                                            align-items: center;
-                                            justify-content: center;
-                                        ">${report.icon}</div>
-                                    </div>
-                                `;
+    <div style="
+      position: relative;
+      width: 40px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none; /* ✅ make all inner content click-through */
+    ">
+      <div style="
+        position: absolute;
+        width: 40px;
+        height: 40px;
+        background: white;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        border: 4px solid ${pinColor};
+      "></div>
+      <div style="
+        position: relative;
+        z-index: 1;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      ">
+        ${report.icon}
+      </div>
+    </div>
+  `;
 
                 return (
                   <Marker
