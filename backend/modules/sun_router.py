@@ -250,6 +250,7 @@ class SunRouter:
             steps_analysis = []
             
             total_length_m = 0.0
+            total_length_m = 0.0
             total_shadow_length_m = 0.0
             total_sheltered_length_m = 0.0
             total_walk_length_m = 0.0
@@ -257,6 +258,7 @@ class SunRouter:
             total_walk_sheltered_length_m = 0.0
             
             route_sheltered_segments = []
+            nearby_shelters_indices = set()
             
             # Iterate through legs and steps
             for leg in legs:
@@ -329,6 +331,14 @@ class SunRouter:
                                          encoded = googlemaps.convert.encode_polyline(path_dicts)
                                          route_sheltered_segments.append(encoded)
 
+                         # 3. Find Nearby Shelters (Buffer 50m) for visualization context
+                         if step.get('travelMode') == 'WALK' and shelters_gdf is not None:
+                            #  buffer_geom = step_line_3857.buffer(50)
+                            buffer_geom = step_line_3857.buffer(100)
+                            # Query against spatial index
+                            nearby_indices = list(shelters_gdf.sindex.query(buffer_geom, predicate="intersects"))
+                            nearby_shelters_indices.update(nearby_indices)
+
                      # Combine shadow + shelter (don't double count overlap)
                      # Logic: If it's sheltered, it's effectively "shaded" from sun (and rain).
                      # But physically, it might be both shaded by building AND a shelter.
@@ -373,6 +383,27 @@ class SunRouter:
                          'sheltered_length_m': sheltered_len,
                          'travel_mode': step.get('travelMode')
                      })
+
+            # Process Nearby Shelters
+            nearby_shelter_polygons_encoded = []
+            if nearby_shelters_indices and shelters_gdf is not None:
+                unique_shelters = shelters_gdf.iloc[list(nearby_shelters_indices)]
+                unique_shelters_4326 = unique_shelters.to_crs(epsg=4326)
+                
+                for geom in unique_shelters_4326.geometry:
+                    if geom.geom_type == 'Polygon':
+                        coords = list(geom.exterior.coords)
+                        path_dicts = [{"lat": lat, "lng": lng} for lng, lat in coords]
+                        if len(path_dicts) >= 2:
+                            encoded = googlemaps.convert.encode_polyline(path_dicts)
+                            nearby_shelter_polygons_encoded.append(encoded)
+                    elif geom.geom_type == 'MultiPolygon':
+                        for poly in geom.geoms:
+                            coords = list(poly.exterior.coords)
+                            path_dicts = [{"lat": lat, "lng": lng} for lng, lat in coords]
+                            if len(path_dicts) >= 2:
+                                encoded = googlemaps.convert.encode_polyline(path_dicts)
+                                nearby_shelter_polygons_encoded.append(encoded)
             
             total_ratio = 0.0
             # Calculate ratio based on walking distance only if available, else overall (fallback)
@@ -401,6 +432,7 @@ class SunRouter:
                 'exposed_distance_m': exposed_distance_m,
                 'steps_analysis': steps_analysis,
                 'sheltered_segments': route_sheltered_segments, # List of encoded polylines
+                'nearby_shelters': nearby_shelter_polygons_encoded, # List of encoded polygons
                 'data': route
             })
             

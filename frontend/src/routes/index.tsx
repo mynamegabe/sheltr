@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { useGeolocated } from 'react-geolocated'
-import { MapContainer, TileLayer, Polyline, useMap, Marker } from 'react-leaflet'
+import { MapContainer, TileLayer, Polyline, useMap, Marker, Polygon } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import axios from 'axios'
@@ -620,6 +620,21 @@ function Index() {
                                                 />
                                             )
                                         })}
+
+                                        {/* Nearby Shelters Overlay */}
+                                        {route.nearby_shelters && route.nearby_shelters.map((encoded: string, sIdx: number) => (
+                                            <Polygon
+                                                key={`nearby-${sIdx}`}
+                                                positions={decodePolyline(encoded)}
+                                                
+                                                pathOptions={{ 
+                                                    color: "transparent", 
+                                                    fillColor: "#22d3ee", 
+                                                    fillOpacity: 1, 
+                                                    weight: 1 
+                                                }}
+                                            />
+                                        ))}
 
                                         {/* Sheltered Path Overlay */}
                                         {route.sheltered_segments && route.sheltered_segments.map((encoded: string, sIdx: number) => (
