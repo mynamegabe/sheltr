@@ -222,6 +222,8 @@ class SunRouter:
             
             total_length_m = 0.0
             total_shadow_length_m = 0.0
+            total_walk_length_m = 0.0
+            total_walk_shadow_length_m = 0.0
             
             # Iterate through legs and steps
             for leg in legs:
@@ -255,6 +257,11 @@ class SunRouter:
                          
                      total_length_m += step_length
                      total_shadow_length_m += shadow_len
+
+                     # Filter for walking only metrics
+                     if step.get('travelMode') == 'WALK':
+                         total_walk_length_m += step_length
+                         total_walk_shadow_length_m += shadow_len
                      
                      # Instructions in v2 are under navigationInstruction
                      instruction = step.get('navigationInstruction', {}).get('instructions', 'Unknown Step')
@@ -265,12 +272,20 @@ class SunRouter:
                          'distance_text': dist_text,
                          'shadow_ratio': ratio,
                          'length_m': step_length,
-                         'shadow_length_m': shadow_len
+                         'shadow_length_m': shadow_len,
+                         'travel_mode': step.get('travelMode')
                      })
             
             total_ratio = 0.0
-            if total_length_m > 0:
-                total_ratio = total_shadow_length_m / total_length_m
+            # Calculate ratio based on walking distance only if available, else overall (fallback)
+            if total_walk_length_m > 0:
+                total_ratio = total_walk_shadow_length_m / total_walk_length_m
+            elif total_length_m > 0:
+                 # Fallback if no walking steps (e.g. all transit?) - though transit usually has walking to station
+                 # If pure transit/drive, use total
+                 total_ratio = total_shadow_length_m / total_length_m
+            
+            exposed_distance_m = total_walk_length_m - total_walk_shadow_length_m if total_walk_length_m > 0 else 0
             
             # Get summary details
             # V2 routes have 'duration' as string "123s"
@@ -284,6 +299,7 @@ class SunRouter:
                 'shadow_ratio': total_ratio,
                 'shadow_length_m': total_shadow_length_m,
                 'total_length_m': total_length_m,
+                'exposed_distance_m': exposed_distance_m,
                 'steps_analysis': steps_analysis,
                 'data': route
             })
