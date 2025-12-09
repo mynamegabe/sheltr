@@ -4,8 +4,7 @@ bin-release/
 [Oo]bj/
 [Bb]in/
 __pycache__/
-cache_data/*.json
-cache_osm/*.json
+
 
 # Other files and folders
 .settings/
@@ -22,3 +21,5 @@ cache_osm/*.json
 # Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
 # should NOT be excluded as they contain compiler settings and other important
 # information for Eclipse / Flash Builder.
+/backend/cache_data
+/backend/cache_osm

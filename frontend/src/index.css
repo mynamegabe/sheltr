@@ -117,4 +117,23 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-sidebar-border/60 hover:bg-sidebar-border;
+    border-radius: 9999px;
+  }
+  
+  .dark ::-webkit-scrollbar-thumb {
+      @apply bg-sidebar-border hover:bg-zinc-700;
+  }
 }
