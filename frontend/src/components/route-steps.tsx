@@ -4,6 +4,7 @@ import { Clock, Navigation, MapPin, Footprints, Bus, Train, TramFront, Layers, L
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { formatDuration, formatDistance } from "@/lib/formatters"
 
 export interface RouteStepsProps {
     route: any
@@ -20,20 +21,7 @@ export function RouteStepContent({ route, onClose, className, hideHeader }: Rout
     const leg = route.data.legs[0]
     const steps = leg.steps || []
 
-    const formatDuration = (seconds: string | number) => {
-        if (!seconds) return ""
-        const s = typeof seconds === 'string' ? parseInt(seconds.replace('s', '')) : seconds
-        if (s < 60) return `${s}s`
-        const m = Math.floor(s / 60)
-        return `${m} min`
-    }
 
-    const formatDistance = (meters: number) => {
-        if (meters >= 1000) {
-            return `${(meters / 1000).toFixed(1)} km`
-        }
-        return `${meters} m`
-    }
 
     const getModeIcon = (mode: string) => {
         switch (mode) {

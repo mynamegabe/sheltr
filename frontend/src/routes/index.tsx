@@ -11,6 +11,7 @@ import { Search, MapPin, Navigation, Clock, Ruler, ArrowUpDown, Bus, Footprints,
 import { DateTimePicker } from "@/components/date-time"
 import { RouteSteps, RouteStepContent } from "@/components/route-steps"
 import { WeatherForecast } from '../components/weather-forecast'
+import { formatDuration } from "@/lib/formatters"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -76,7 +77,9 @@ export const Route = createFileRoute('/')({
 // Helper to update map view
 function MapUpdater({ center, zoom }: { center: [number, number]; zoom: number }) {
     const map = useMap()
-    map.setView(center, zoom)
+    useEffect(() => {
+        map.setView(center, zoom)
+    }, [center, zoom, map])
     return null
 }
 
@@ -592,7 +595,7 @@ function Index() {
                                                             </span>
                                                         </div>
                                                         <div className="flex gap-3 text-xs text-muted-foreground mb-1">
-                                                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {route.duration}</span>
+                                                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {formatDuration(route.duration)}</span>
                                                             <span className="flex items-center gap-1"><Ruler className="w-3 h-3" /> {route.distance}</span>
                                                             {(route.total_walk_length_m !== undefined) && (
                                                                 <span className="flex items-center gap-1"><Footprints className="w-3 h-3" /> {route.total_walk_length_m.toFixed(0)}m Walk</span>
@@ -662,7 +665,7 @@ function Index() {
                          <DrawerHeader className="text-left border-b pb-2">
                             <DrawerTitle>Route Details</DrawerTitle>
                             <DrawerDescription>
-                                {routes[selectedRouteIndex].summary} • {routes[selectedRouteIndex].duration}
+                                {routes[selectedRouteIndex].summary} • {formatDuration(routes[selectedRouteIndex].duration)}
                             </DrawerDescription>
                          </DrawerHeader>
                          <div className="flex-1 overflow-y-auto">
