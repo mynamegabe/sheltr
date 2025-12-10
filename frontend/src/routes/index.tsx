@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { useGeolocated } from 'react-geolocated'
-import { MapContainer, TileLayer, Polyline, useMap, Marker, Polygon } from 'react-leaflet'
+import { MapContainer, TileLayer, Polyline, useMap, Marker, Polygon, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import axios from 'axios'
@@ -99,6 +99,7 @@ function Index() {
     const [loading, setLoading] = useState(false)
     const [routes, setRoutes] = useState<any[]>([])
     const [selectedRouteIndex, setSelectedRouteIndex] = useState<number | null>(null)
+    const [visibleDetailsPanel, setVisibleDetailsPanel] = useState(false);
 
     // Visibility Toggles
     const [showReports, setShowReports] = useState(true); // Obstacles, crowds, etc.
@@ -106,7 +107,7 @@ function Index() {
 
     // Travel Mode & Preferences
     const [travelMode, setTravelMode] = useState<'WALK' | 'TRANSIT'>('TRANSIT')
-    const [allowedTransitModes, setAllowedTransitModes] = useState<string[]>([])
+    const [allowedTransitModes, setAllowedTransitModes] = useState<string[]>(['BUS', 'SUBWAY', 'TRAIN', 'LIGHT_RAIL'])
     const [transitRoutingPreference, setTransitRoutingPreference] = useState<string>('LESS_WALKING')
 
     const [sortBy, setSortBy] = useState<string>('time')
@@ -249,7 +250,7 @@ function Index() {
         setSelectedRouteIndex(null)
 
         try {
-            const response = await axios.post('http://192.168.1.127:8000/routes', {
+            const response = await axios.post('http://localhost:8000/routes', {
                 origin: (origin === "My Location" && coords) ? {
                     "location": {
                         "latLng": {
@@ -281,6 +282,7 @@ function Index() {
             if (data.length > 0) {
                 // Automatically select best route
                 setSelectedRouteIndex(0)
+                setVisibleDetailsPanel(true)
 
                 // Try to center map on start of first route
                 const firstRoute = data[0]
@@ -536,9 +538,16 @@ function Index() {
                                                     <button
                                                         onClick={() => {
                                                             if (isSelected) {
+                                                                // If clicking already selected, toggle details visibility? 
+                                                                // Or deselect? User said "collapsing... does not unselect".
+                                                                // Usually clicking again deselects or toggles. 
+                                                                // Let's keep typical behavior: clicking selected -> deselect
+                                                                // BUT closing panel -> just hide panel
                                                                 setSelectedRouteIndex(null)
+                                                                setVisibleDetailsPanel(false)
                                                             } else {
                                                                 setSelectedRouteIndex(originalIndex)
+                                                                setVisibleDetailsPanel(true)
                                                             }
                                                         }}
                                                         className={clsx(
@@ -614,11 +623,11 @@ function Index() {
                 <FloatingTrigger />
 
 
-                {selectedRouteIndex !== null && routes[selectedRouteIndex] && (
+                {selectedRouteIndex !== null && routes[selectedRouteIndex] && visibleDetailsPanel && (
                     <div className="absolute top-0 left-0 bottom-0 z-[5] h-full shadow-2xl animate-in slide-in-from-left-10 fade-in duration-300">
                         <RouteSteps
                             route={routes[selectedRouteIndex]}
-                            onClose={() => setSelectedRouteIndex(null)}
+                            onClose={() => setVisibleDetailsPanel(false)}
                         />
                     </div>
                 )}
@@ -660,7 +669,8 @@ function Index() {
                                         const path = decodePolyline(step.polyline?.encodedPolyline || '')
                                         return {
                                             positions: path,
-                                            mode: step.travelMode
+                                            mode: step.travelMode,
+                                            transitDetails: step.transitDetails
                                         }
                                     })
                                 } else {
@@ -698,6 +708,7 @@ function Index() {
                                                 eventHandlers={{
                                                     click: () => {
                                                         setSelectedRouteIndex(idx)
+                                                        setVisibleDetailsPanel(true)
                                                     }
                                                 }}
                                             />
@@ -753,7 +764,34 @@ function Index() {
                                                         iconSize: [24, 24],
                                                         iconAnchor: [12, 12]
                                                     })}
-                                                />
+                                                >
+                                                    {currMode === 'TRANSIT' && seg.transitDetails && (
+                                                        <Tooltip direction="top" offset={[0, -12]} opacity={1} sticky>
+                                                            <div className="min-w-[150px] p-1">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <div className="font-bold text-sm bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                                                                        {seg.transitDetails.transitLine?.name}
+                                                                    </div>
+                                                                    <span className="text-xs text-muted-foreground">{seg.transitDetails.transitLine?.vehicle?.name?.text || "Transit"}</span>
+                                                                </div>
+
+                                                                {seg.transitDetails.stopDetails?.departureStop?.name && (
+                                                                    <div className="text-xs border-l-2 border-green-500 pl-2 mb-1">
+                                                                        <span className="text-[10px] text-muted-foreground uppercase">From</span>
+                                                                        <div className="font-medium">{seg.transitDetails.stopDetails.departureStop.name}</div>
+                                                                    </div>
+                                                                )}
+
+                                                                {seg.transitDetails.stopDetails?.arrivalStop?.name && (
+                                                                    <div className="text-xs border-l-2 border-red-500 pl-2">
+                                                                        <span className="text-[10px] text-muted-foreground uppercase">To</span>
+                                                                        <div className="font-medium">{seg.transitDetails.stopDetails.arrivalStop.name}</div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </Tooltip>
+                                                    )}
+                                                </Marker>
                                             )
                                         })}
 
