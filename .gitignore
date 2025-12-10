@@ -24,3 +24,4 @@ __pycache__/
 # information for Eclipse / Flash Builder.
 /backend/cache_data
 /backend/cache_osm
+frontend/.env.production
