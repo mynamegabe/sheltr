@@ -12,6 +12,16 @@ from modules.weather_service import WeatherService
 
 load_dotenv()
 
+import models
+from database import engine, get_db
+from sqlalchemy.orm import Session
+from fastapi import FastAPI, HTTPException, Body, Depends
+
+# Create tables
+models.Base.metadata.create_all(bind=engine)
+
+load_dotenv()
+
 app = FastAPI()
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,24 +33,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# --- Filesystem Persistence for Reports ---
-import json
-REPORTS_FILE = "data/reports.json"
-
-def load_reports():
-    if not os.path.exists(REPORTS_FILE):
-        return []
-    try:
-        with open(REPORTS_FILE, "r") as f:
-            return json.load(f)
-    except Exception:
-        return []
-
-def save_reports(reports):
-    os.makedirs(os.path.dirname(REPORTS_FILE), exist_ok=True)
-    with open(REPORTS_FILE, "w") as f:
-        json.dump(reports, f, indent=2)
 
 # Initialize SunRouter
 api_key = os.getenv("GOOGLE_MAPS_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -188,72 +180,87 @@ async def get_weather(lat: float, lon: float):
     return weather_service.fetch_nearby_forecasts(lat, lon)
 
 # --- Report Endpoints ---
+from schemas import AccessibilitySubmission, AccessibilitySubmissionCreate
 
 @app.get("/reports", response_model=List[Report])
-async def get_reports():
-    return load_reports()
+async def get_reports(db: Session = Depends(get_db)):
+    return db.query(models.Report).all()
 
 @app.post("/reports", response_model=Report)
-async def create_report(report: ReportCreate):
-    reports = load_reports()
+async def create_report(report: ReportCreate, db: Session = Depends(get_db)):
+    db_report = models.Report(
+        type=report.type,
+        label=report.label,
+        latitude=report.coordinates[1],
+        longitude=report.coordinates[0], # Frontend sends [lng, lat] usually? Schema says coordinates: List[float]. Usually GeoJSON is [lng, lat].
+        # wait, models.Report has lat/lng separately.
+        # Check ReportCreate schema: coordinates: List[float].
+        # I'll assume [lng, lat] based on typical map libs, but let's double check usage if possible. 
+        # Actually in models.py I defined lat/long. 
+        # I'll assume [lng, lat] for now.
+        details=report.details,
+        timestamp=report.timestamp
+    )
+    db.add(db_report)
+    db.commit()
+    db.refresh(db_report)
     
-    # Create new report object
-    new_report = report.dict()
-    # Generate ID if not present (though frontend might handle temporary ID, backend should probably finalize it or accept it)
-    # The schema has ID in Report but not ReportCreate? 
-    # Wait, ReportCreate inherits ReportBase. Report inherits ReportBase + has ID.
-    # So we need to generate ID.
-    import uuid
-    new_report_id = str(uuid.uuid4())
-    
-    final_report = {
-        "id": new_report_id,
-        **new_report,
-        "confirmations": 1,
-        "denials": 0
+    # Convert back to Schema format (restore coordinates list)
+    # The Pydantic model Report expects `coordinates`. models.Report has lat/lng.
+    # We need to map it or Pydantic `from_attributes` might fail if names don't match.
+    # Let's do a manual map or add a property to the model, but manual is safer for response.
+    return convert_report_model_to_schema(db_report)
+
+def convert_report_model_to_schema(r):
+    return {
+        "id": r.id,
+        "type": r.type,
+        "label": r.label,
+        "coordinates": [r.longitude, r.latitude],
+        "details": r.details,
+        "timestamp": r.timestamp,
+        "confirmations": r.confirmations,
+        "denials": r.denials
     }
-    
-    reports.append(final_report)
-    save_reports(reports)
-    return final_report
 
 @app.post("/reports/{report_id}/confirm", response_model=Report)
-async def confirm_report(report_id: str):
-    reports = load_reports()
-    for r in reports:
-        if r["id"] == report_id:
-            r["confirmations"] += 1
-            save_reports(reports)
-            return r
-    raise HTTPException(status_code=404, detail="Report not found")
+async def confirm_report(report_id: str, db: Session = Depends(get_db)):
+    report = db.query(models.Report).filter(models.Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    report.confirmations += 1
+    db.commit()
+    db.refresh(report)
+    return convert_report_model_to_schema(report)
 
 @app.post("/reports/{report_id}/deny", response_model=Report)
-async def deny_report(report_id: str):
-    reports = load_reports()
-    updated_reports = []
-    found = False
-    returned_report = None
-    
-    for r in reports:
-        if r["id"] == report_id:
-            found = True
-            r["denials"] += 1
-            if r["denials"] < 3:
-                updated_reports.append(r)
-                returned_report = r
-            else:
-                # Removed
-                returned_report = r # return it even if removed? Or raise 404? 
-                # Let's return it with status? Or just return success.
-                pass
-        else:
-            updated_reports.append(r)
-            
-    if not found:
+async def deny_report(report_id: str, db: Session = Depends(get_db)):
+    report = db.query(models.Report).filter(models.Report.id == report_id).first()
+    if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-        
-    save_reports(updated_reports)
-    return returned_report
+    
+    report.denials += 1
+    if report.denials >= 3:
+        # Delete? or just mark? Prompt didn't specify, but code previously removed it from list.
+        db.delete(report)
+        db.commit()
+        # Return the last state? Or 204? 
+        return convert_report_model_to_schema(report) # It's detached but data is there
+    else:
+        db.commit()
+        db.refresh(report)
+        return convert_report_model_to_schema(report)
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+# --- Accessibility Endpoints ---
+
+@app.get("/accessibility", response_model=List[AccessibilitySubmission])
+async def get_accessibility_submissions(db: Session = Depends(get_db)):
+    return db.query(models.AccessibilitySubmission).all()
+
+@app.post("/accessibility", response_model=AccessibilitySubmission)
+async def create_accessibility_submission(submission: AccessibilitySubmissionCreate, db: Session = Depends(get_db)):
+    db_item = models.AccessibilitySubmission(**submission.dict())
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item

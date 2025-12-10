@@ -165,7 +165,16 @@ class SunRouter:
         """
         shadows = []
         if sun_altitude <= 0:
-            return shadows # Night time
+            # Night time: The entire world is in shadow.
+            # Return a massive polygon covering the world in Web Mercator (EPSG:3857)
+            # Max bounds approx +/- 20037508.34
+            world_box = Polygon([
+                (-20037508.34, -20037508.34),
+                (20037508.34, -20037508.34),
+                (20037508.34, 20037508.34),
+                (-20037508.34, 20037508.34)
+            ])
+            return [world_box]
 
         # Shadow length factor = 1 / tan(altitude)
         if sun_altitude < 1:

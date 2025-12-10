@@ -27,4 +27,24 @@ class Report(ReportBase):
     id: str
     confirmations: int = 1
     denials: int = 0
+    
+    class Config:
+        from_attributes = True
+
+class AccessibilitySubmissionBase(BaseModel):
+    location_name: Optional[str] = None
+    latitude: float
+    longitude: float
+    issue_type: str
+    description: Optional[str] = None
+
+class AccessibilitySubmissionCreate(AccessibilitySubmissionBase):
+    pass
+
+class AccessibilitySubmission(AccessibilitySubmissionBase):
+    id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
 

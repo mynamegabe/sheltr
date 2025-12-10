@@ -572,6 +572,9 @@ function Index() {
                                                         <div className="flex gap-3 text-xs text-muted-foreground mb-1">
                                                             <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {route.duration}</span>
                                                             <span className="flex items-center gap-1"><Ruler className="w-3 h-3" /> {route.distance}</span>
+                                                            {(route.total_walk_length_m !== undefined) && (
+                                                                <span className="flex items-center gap-1"><Footprints className="w-3 h-3" /> {route.total_walk_length_m.toFixed(0)}m Walk</span>
+                                                            )}
                                                         </div>
                                                         <div className="text-[10px] text-muted-foreground/60 truncate">
                                                             via {route.summary}

@@ -108,6 +108,9 @@ export function RouteSteps({ route, onClose }: RouteStepsProps) {
                         <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {leg.staticDuration ? formatDuration(leg.staticDuration) : route.duration}</span>
                             <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {leg.distanceMeters ? formatDistance(leg.distanceMeters) : route.distance}</span>
+                            {route.total_walk_length_m !== undefined && (
+                                <span className="flex items-center gap-1"><Footprints className="w-3.5 h-3.5" /> {formatDistance(route.total_walk_length_m)} Walk</span>
+                            )}
                         </div>
                     </div>
                     {onClose && (
