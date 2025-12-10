@@ -120,7 +120,7 @@ function Index() {
     useEffect(() => {
         const fetchReports = async () => {
             try {
-                const response = await axios.get('/api/reports');
+                const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/reports`);
                 setReports(response.data);
             } catch (error) {
                 console.error("Failed to fetch reports", error);
@@ -135,7 +135,7 @@ function Index() {
     // Handler for report confirmations
     const handleConfirmReport = async (reportId: string) => {
         try {
-            const response = await axios.post(`/api/reports/${reportId}/confirm`);
+            const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/reports/${reportId}/confirm`);
             const updatedReport = response.data;
             setReports(prev => prev.map(r => r.id === reportId ? updatedReport : r));
         } catch (error) {
@@ -146,7 +146,7 @@ function Index() {
     // Handler for report denials (removes after 3 denials)
     const handleDenyReport = async (reportId: string) => {
         try {
-            const response = await axios.post(`/api/reports/${reportId}/deny`);
+            const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/reports/${reportId}/deny`);
             const updatedReport = response.data;
 
             // If report is returned (not 404), update it. If it has high denials, it might be removed or flagged.
@@ -260,7 +260,7 @@ function Index() {
         setSelectedRouteIndex(null)
 
         try {
-            const response = await axios.post('/api/routes', {
+            const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/routes`, {
                 origin: (origin === "My Location" && coords) ? {
                     "location": {
                         "latLng": {

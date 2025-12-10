@@ -109,7 +109,7 @@ const ReportButton: React.FC<ReportButtonProps> = ({ reports, onReportsChange })
                 timestamp: Date.now(),
             };
 
-            const response = await axios.post('/api/reports', reportData);
+            const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/reports`, reportData);
             const newReport = response.data;
 
             onReportsChange([...reports, newReport]);
