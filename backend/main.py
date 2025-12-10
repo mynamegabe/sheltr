@@ -175,6 +175,10 @@ async def get_routes(request: RouteRequest):
     # 5. Analyze
     analyzed_routes = router_service.analyze_routes(routes, shadows)
     
+    if analyzed_routes:
+        print(f"[DEBUG] Route keys: {analyzed_routes[0].keys()}")
+        print(f"[DEBUG] Walk len: {analyzed_routes[0].get('total_walk_length_m')}")
+
     return analyzed_routes
 
 weather_service = WeatherService()

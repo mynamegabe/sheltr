@@ -197,8 +197,8 @@ function Index() {
             const distB = b.data?.distanceMeters ?? b.distanceMeters ?? 0
             return distA - distB
         } else if (sortBy === 'shade') {
-            // Descending shade
-            return b.shadow_ratio - a.shadow_ratio
+            // Ascending sunlight (less is better)
+            return (a.exposed_distance_m ?? 0) - (b.exposed_distance_m ?? 0)
         }
         return 0
     })
@@ -520,7 +520,7 @@ function Index() {
                                             <SelectContent>
                                                 <SelectItem value="time" className="text-xs">Time</SelectItem>
                                                 <SelectItem value="distance" className="text-xs">Distance</SelectItem>
-                                                <SelectItem value="shade" className="text-xs">Protected %</SelectItem>
+                                                <SelectItem value="shade" className="text-xs">Sunlight</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -566,7 +566,7 @@ function Index() {
                                                                     route.shadow_ratio > 0.2 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
                                                                         "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                                                             )}>
-                                                                {(route.shadow_ratio * 100).toFixed(0)}% Protected • {(route.exposed_distance_m ?? 0).toFixed(0)}m exposed
+                                                                {(route.exposed_distance_m ?? 0).toFixed(0)}m Sunlight • {((route.total_walk_length_m ?? 0) - (route.total_walk_sheltered_length_m ?? 0)).toFixed(0)}m Unsheltered
                                                             </span>
                                                         </div>
                                                         <div className="flex gap-3 text-xs text-muted-foreground mb-1">

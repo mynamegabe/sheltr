@@ -507,7 +507,9 @@ class SunRouter:
                 'steps_analysis': steps_analysis,
                 'sheltered_segments': route_sheltered_segments, # List of encoded polylines
                 'nearby_shelters': nearby_shelter_polygons_encoded, # List of encoded polygons
-                'data': route
+                'data': route,
+                'total_walk_length_m': total_walk_length_m,
+                'total_walk_sheltered_length_m': total_walk_sheltered_length_m
             })
             
         scored_routes.sort(key=lambda x: x['shadow_ratio'], reverse=True)
