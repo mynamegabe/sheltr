@@ -7,9 +7,9 @@ import 'leaflet/dist/leaflet.css'
 import axios from 'axios'
 import clsx from 'clsx'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Search, MapPin, Navigation, Clock, Ruler, ArrowUpDown, Bus, Footprints, Train, TramFront, Locate } from 'lucide-react'
+import { Search, MapPin, Navigation, Clock, Ruler, ArrowUpDown, Bus, Footprints, Train, TramFront, Locate, ChevronUp } from 'lucide-react'
 import { DateTimePicker } from "@/components/date-time"
-import { RouteSteps } from "@/components/route-steps"
+import { RouteSteps, RouteStepContent } from "@/components/route-steps"
 import { WeatherForecast } from '../components/weather-forecast'
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -56,6 +56,16 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog";
+
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer"
+import { useMediaQuery } from "@/hooks/use-media-query"
 
 export const Route = createFileRoute('/')({
     component: Index,
@@ -112,6 +122,8 @@ function Index() {
     const [transitRoutingPreference, setTransitRoutingPreference] = useState<string>('LESS_WALKING')
 
     const [sortBy, setSortBy] = useState<string>('time')
+
+    const isDesktop = useMediaQuery("(min-width: 768px)")
 
     // ========== WAZE-LIKE REPORTING FEATURE ==========
     // Initialize reports from backend
@@ -637,15 +649,49 @@ function Index() {
 
 
                 {selectedRouteIndex !== null && routes[selectedRouteIndex] && visibleDetailsPanel && (
+                  isDesktop ? (
                     <div className="absolute top-0 left-0 bottom-0 z-[5] h-full shadow-2xl animate-in slide-in-from-left-10 fade-in duration-300">
                         <RouteSteps
                             route={routes[selectedRouteIndex]}
                             onClose={() => setVisibleDetailsPanel(false)}
                         />
                     </div>
+                  ) : (
+                    <Drawer open={visibleDetailsPanel} onOpenChange={setVisibleDetailsPanel}>
+                       <DrawerContent className="max-h-[85vh] flex flex-col">
+                         <DrawerHeader className="text-left border-b pb-2">
+                            <DrawerTitle>Route Details</DrawerTitle>
+                            <DrawerDescription>
+                                {routes[selectedRouteIndex].summary} • {routes[selectedRouteIndex].duration}
+                            </DrawerDescription>
+                         </DrawerHeader>
+                         <div className="flex-1 overflow-y-auto">
+                            <RouteStepContent
+                                route={routes[selectedRouteIndex]}
+                                hideHeader={true}
+                                className="border-none"
+                            />
+                         </div>
+                         <DrawerFooter className="pt-2 border-t">
+                           <Button variant="outline" onClick={() => setVisibleDetailsPanel(false)}>Close</Button>
+                         </DrawerFooter>
+                       </DrawerContent>
+                    </Drawer>
+                  )
                 )}
 
                 <div className="absolute inset-0 w-full h-full">
+                     {!isDesktop && selectedRouteIndex !== null && !visibleDetailsPanel && (
+                         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[400] animate-in slide-in-from-bottom-4 fade-in duration-300">
+                             <Button
+                                 className="rounded-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 px-6 h-12"
+                                 onClick={() => setVisibleDetailsPanel(true)}
+                             >
+                                 <ChevronUp className="w-5 h-5 mr-2" />
+                                 <span className="font-semibold">Open Route</span>
+                             </Button>
+                         </div>
+                    )}
 
                     <div className="w-full h-full bg-gray-100 dark:bg-neutral-900">
                         <MapContainer
@@ -727,7 +773,6 @@ function Index() {
                                             />
                                         ))}
 
-                                        {/* Transition Markers */}
                                         {segments.map((seg, segIdx) => {
                                             if (segIdx === 0) return null // Skip start
                                             const prevMode = segments[segIdx - 1].mode
@@ -808,7 +853,6 @@ function Index() {
                                             )
                                         })}
 
-                                        {/* Nearby Shelters Overlay */}
                                         {route.nearby_shelters && route.nearby_shelters.map((encoded: string, sIdx: number) => (
                                             <Polygon
                                                 key={`nearby-${sIdx}`}
@@ -823,7 +867,6 @@ function Index() {
                                             />
                                         ))}
 
-                                        {/* Sheltered Path Overlay */}
                                         {route.sheltered_segments && route.sheltered_segments.map((encoded: string, sIdx: number) => (
                                             <Polyline
                                                 key={`sheltered-${sIdx}`}
@@ -866,7 +909,6 @@ function Index() {
                                 )
                             })}
 
-                            {/* Render Report Markers */}
                             {reports.map((report) => {
                                 const reportType = REPORT_TYPES.find((t) => t.type === report.type);
                                 if (!reportType) return null;
@@ -920,7 +962,6 @@ function Index() {
                     </div>
                 </div>
 
-                {/* ========== WAZE-LIKE REPORT BUTTON ========== */}
                 <div className="absolute bottom-8 right-6 z-[400] flex flex-col gap-3 items-end">
                     <Button
                         variant="default"
@@ -939,7 +980,6 @@ function Index() {
                     <ReportButton reports={reports} onReportsChange={setReports} />
                 </div>
 
-                {/* ========== REPORT DETAIL DIALOG (from original MapView) ========== */}
                 <Dialog
                     open={!!selectedReport}
                     onOpenChange={(open) => !open && setSelectedReport(null)}

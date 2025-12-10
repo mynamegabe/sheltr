@@ -258,8 +258,6 @@ class SunRouter:
             for reading in readings:
                 val = reading.get('value', 0)
                 sid = reading.get('stationId')
-                if sid == 'S81' or sid == 'S203':
-                    val = 1
                 if val > 0 and sid in stations:
                     loc = stations[sid]
                     raining_coords.append((loc['latitude'], loc['longitude']))

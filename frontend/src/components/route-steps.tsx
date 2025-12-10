@@ -1,17 +1,18 @@
 
-
 import { useState, useMemo } from "react"
 import { Clock, Navigation, MapPin, Footprints, Bus, Train, TramFront, Layers, List, ChevronLeft } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 
-interface RouteStepsProps {
-    route: any // Using specific type if available, but any for now as route structure varies
+export interface RouteStepsProps {
+    route: any
     onClose?: () => void
+    className?: string // Allow overriding styles
+    hideHeader?: boolean // Option to hide header for mobile drawer context if needed
 }
 
-export function RouteSteps({ route, onClose }: RouteStepsProps) {
+export function RouteStepContent({ route, onClose, className, hideHeader }: RouteStepsProps) {
     if (!route || !route.data || !route.data.legs || route.data.legs.length === 0) {
         return null
     }
@@ -19,7 +20,6 @@ export function RouteSteps({ route, onClose }: RouteStepsProps) {
     const leg = route.data.legs[0]
     const steps = leg.steps || []
 
-    // Helper to format duration
     const formatDuration = (seconds: string | number) => {
         if (!seconds) return ""
         const s = typeof seconds === 'string' ? parseInt(seconds.replace('s', '')) : seconds
@@ -28,7 +28,6 @@ export function RouteSteps({ route, onClose }: RouteStepsProps) {
         return `${m} min`
     }
 
-    // Helper to format distance
     const formatDistance = (meters: number) => {
         if (meters >= 1000) {
             return `${(meters / 1000).toFixed(1)} km`
@@ -59,16 +58,13 @@ export function RouteSteps({ route, onClose }: RouteStepsProps) {
         steps.forEach((step: any) => {
             if (step.travelMode === 'WALK') {
                 if (!pendingWalk) {
-                    // Start a new pending walk block
                     pendingWalk = { ...step, distanceMeters: step.distanceMeters || 0, staticDuration: step.staticDuration ? parseInt(step.staticDuration.replace('s', '')) : 0 }
                 } else {
-                    // Accumulate to existing pending walk
                     pendingWalk.distanceMeters += (step.distanceMeters || 0)
                     const dur = step.staticDuration ? parseInt(step.staticDuration.replace('s', '')) : 0
                     pendingWalk.staticDuration += dur
                 }
             } else {
-                // Push any pending walk first
                 if (pendingWalk) {
                     pendingWalk.staticDuration = `${pendingWalk.staticDuration}s`
                     pendingWalk.navigationInstruction = {
@@ -78,12 +74,10 @@ export function RouteSteps({ route, onClose }: RouteStepsProps) {
                     condensed.push(pendingWalk)
                     pendingWalk = null
                 }
-                // Push current non-walk step
                 condensed.push(step)
             }
         })
 
-        // Push final pending walk if any
         if (pendingWalk) {
             pendingWalk.staticDuration = `${pendingWalk.staticDuration}s`
             pendingWalk.navigationInstruction = {
@@ -97,38 +91,40 @@ export function RouteSteps({ route, onClose }: RouteStepsProps) {
     }, [steps, isCondensed])
 
     return (
-        <div className="w-80 h-full bg-background text-foreground border-r flex flex-col shadow-sm z-10">
-            <div className="p-4 border-b bg-muted/20 space-y-3">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h3 className="font-semibold text-lg flex items-center gap-2">
-                            <Navigation className="w-5 h-5" />
-                            Route Details
-                        </h3>
-                        <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {leg.staticDuration ? formatDuration(leg.staticDuration) : route.duration}</span>
-                            <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {leg.distanceMeters ? formatDistance(leg.distanceMeters) : route.distance}</span>
-                            {route.total_walk_length_m !== undefined && (
-                                <span className="flex items-center gap-1"><Footprints className="w-3.5 h-3.5" /> {formatDistance(route.total_walk_length_m)} Walk</span>
-                            )}
+        <div className={`flex flex-col h-full bg-background ${className || ''}`}>
+            {!hideHeader && (
+                <div className="p-4 border-b bg-muted/20 space-y-3">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="font-semibold text-lg flex items-center gap-2">
+                                <Navigation className="w-5 h-5" />
+                                Route Details
+                            </h3>
+                            <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {leg.staticDuration ? formatDuration(leg.staticDuration) : route.duration}</span>
+                                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {leg.distanceMeters ? formatDistance(leg.distanceMeters) : route.distance}</span>
+                                {route.total_walk_length_m !== undefined && (
+                                    <span className="flex items-center gap-1"><Footprints className="w-3.5 h-3.5" /> {formatDistance(route.total_walk_length_m)} Walk</span>
+                                )}
+                            </div>
                         </div>
+                        {onClose && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={onClose}>
+                                <ChevronLeft className="w-4 h-4" />
+                                <span className="sr-only">Close</span>
+                            </Button>
+                        )}
                     </div>
-                    {onClose && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={onClose}>
-                            <ChevronLeft className="w-4 h-4" />
-                            <span className="sr-only">Close</span>
-                        </Button>
-                    )}
-                </div>
 
-                <div className="flex items-center space-x-2">
-                    <Switch id="condensed-mode" checked={isCondensed} onCheckedChange={setIsCondensed} />
-                    <Label htmlFor="condensed-mode" className="text-xs font-normal text-muted-foreground flex items-center gap-1">
-                        {isCondensed ? <Layers className="w-3 h-3" /> : <List className="w-3 h-3" />}
-                        {isCondensed ? "Condensed View" : "Detailed View"}
-                    </Label>
+                    <div className="flex items-center space-x-2">
+                        <Switch id="condensed-mode" checked={isCondensed} onCheckedChange={setIsCondensed} />
+                        <Label htmlFor="condensed-mode" className="text-xs font-normal text-muted-foreground flex items-center gap-1">
+                            {isCondensed ? <Layers className="w-3 h-3" /> : <List className="w-3 h-3" />}
+                            {isCondensed ? "Condensed View" : "Detailed View"}
+                        </Label>
+                    </div>
                 </div>
-            </div>
+            )}
 
             <div className="flex-1 overflow-y-auto">
                 <div className="p-4 space-y-2">
@@ -162,11 +158,6 @@ export function RouteSteps({ route, onClose }: RouteStepsProps) {
                                             <span>
                                                 Take {step.transitDetails.transitLine.vehicle?.name?.text || "Transit"} <span className="font-bold text-primary">{step.transitDetails.transitLine.name}</span>
                                             </span>
-                                            {/* {step.transitDetails.headsign && (
-                                                <span className="text-xs text-muted-foreground font-normal">
-                                                    towards {step.transitDetails.headsign}
-                                                </span>
-                                            )} */}
                                         </div>
                                     ) : (
                                         step.navigationInstruction?.maneuver || (step.travelMode === 'WALK' ? 'Walk' : 'Travel')
@@ -200,6 +191,15 @@ export function RouteSteps({ route, onClose }: RouteStepsProps) {
                     </div>
                 </div>
             </div>
+        </div>
+    )
+}
+
+// Wrapper for desktop sidebar behavior
+export function RouteSteps(props: RouteStepsProps) {
+    return (
+        <div className="w-80 h-full bg-background text-foreground border-r flex flex-col shadow-sm z-10">
+            <RouteStepContent {...props} />
         </div>
     )
 }
