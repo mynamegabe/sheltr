@@ -7,13 +7,14 @@ import 'leaflet/dist/leaflet.css'
 import axios from 'axios'
 import clsx from 'clsx'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Search, MapPin, Navigation, Sun, Clock, Ruler, ArrowUpDown, Bus, Footprints, Train, TramFront, Locate } from 'lucide-react'
+import { Search, MapPin, Navigation, Clock, Ruler, ArrowUpDown, Bus, Footprints, Train, TramFront, Locate } from 'lucide-react'
 import { DateTimePicker } from "@/components/date-time"
 import { RouteSteps } from "@/components/route-steps"
 import { WeatherForecast } from '../components/weather-forecast'
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import Logo from "@/assets/android-chrome-192x192.png"
 
 // Shadcn Components
 import { Button } from "@/components/ui/button"
@@ -119,7 +120,7 @@ function Index() {
     useEffect(() => {
         const fetchReports = async () => {
             try {
-                const response = await axios.get('http://localhost:8000/reports');
+                const response = await axios.get('/api/reports');
                 setReports(response.data);
             } catch (error) {
                 console.error("Failed to fetch reports", error);
@@ -134,7 +135,7 @@ function Index() {
     // Handler for report confirmations
     const handleConfirmReport = async (reportId: string) => {
         try {
-            const response = await axios.post(`http://localhost:8000/reports/${reportId}/confirm`);
+            const response = await axios.post(`/api/reports/${reportId}/confirm`);
             const updatedReport = response.data;
             setReports(prev => prev.map(r => r.id === reportId ? updatedReport : r));
         } catch (error) {
@@ -145,7 +146,7 @@ function Index() {
     // Handler for report denials (removes after 3 denials)
     const handleDenyReport = async (reportId: string) => {
         try {
-            const response = await axios.post(`http://localhost:8000/reports/${reportId}/deny`);
+            const response = await axios.post(`/api/reports/${reportId}/deny`);
             const updatedReport = response.data;
 
             // If report is returned (not 404), update it. If it has high denials, it might be removed or flagged.
@@ -259,7 +260,7 @@ function Index() {
         setSelectedRouteIndex(null)
 
         try {
-            const response = await axios.post('http://localhost:8000/routes', {
+            const response = await axios.post('/api/routes', {
                 origin: (origin === "My Location" && coords) ? {
                     "location": {
                         "latLng": {
@@ -351,8 +352,8 @@ function Index() {
                 <SidebarHeader className="h-16 border-b border-sidebar-border flex flex-row items-center justify-between px-6">
                     <div className="flex items-center gap-2">
                         <SidebarTrigger className="-ml-1" />
-                        <div className="flex bg-primary/10 rounded-lg p-1">
-                            <Sun className="w-5 h-5 text-orange-500 fill-orange-500" />
+                        <div className="flex bg-transparent rounded-lg p-0">
+                            <img src={Logo} alt="Logo" className="w-7 h-7 rounded-sm" />
                         </div>
                         <div className="flex flex-col">
                             <span className="font-bold tracking-tight leading-none">Sheltr</span>

@@ -58,7 +58,7 @@ export function WeatherForecast({ overrideCoords }: WeatherForecastProps) {
   // ... (Your fetchWeather and useEffect logic stays exactly the same) ...
   const fetchWeather = (lat: number, lon: number) => {
       setLoading(true);
-      const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+      const API_URL = import.meta.env.VITE_API_URL || "/api";
 
       fetch(`${API_URL}/weather?lat=${lat}&lon=${lon}`)
         .then(res => res.ok ? res.json() : [])

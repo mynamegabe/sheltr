@@ -50,5 +50,15 @@ services:
       - /app/node_modules
     # Ensure it can reach backend if doing SSR or build time fetch (not case here)
 
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+
 volumes:
   db_data:
