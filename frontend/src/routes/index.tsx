@@ -44,9 +44,22 @@ import { PlacesAutocomplete } from "@/components/places-autocomplete"
 import { ModeToggle } from "@/components/mode-toggle"
 import { useTheme } from "@/components/theme-provider"
 
+import ReportButton from "@/components/ReportButton";
+import type { Report } from "@/components/ReportButton";
+
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+
 export const Route = createFileRoute('/')({
     component: Index,
 })
+
+const REPORTS_STORAGE_KEY = "coolpath-reports";
 
 // Helper to update map view
 function MapUpdater({ center, zoom }: { center: [number, number]; zoom: number }) {
@@ -92,6 +105,58 @@ function Index() {
     const [transitRoutingPreference, setTransitRoutingPreference] = useState<string>('LESS_WALKING')
 
     const [sortBy, setSortBy] = useState<string>('time')
+
+    // ========== WAZE-LIKE REPORTING FEATURE ==========
+    // Initialize reports from localStorage with 2-hour expiration filter
+    const [reports, setReports] = useState<Report[]>(() => {
+        const stored = localStorage.getItem(REPORTS_STORAGE_KEY);
+        if (stored) {
+            const parsed: Report[] = JSON.parse(stored);
+            // Filter out reports older than 2 hours
+            return parsed.filter(
+                (r) => Date.now() - r.timestamp < 2 * 60 * 60 * 1000
+            );
+        }
+        return [];
+    });
+
+    // Selected report for dialog (from original MapView)
+    const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+
+    // Handler for report confirmations
+    const handleConfirmReport = (reportId: string) => {
+        const updated = reports.map((r) =>
+            r.id === reportId ? { ...r, confirmations: r.confirmations + 1 } : r
+        );
+        setReports(updated);
+        localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(updated));
+    };
+
+    // Handler for report denials (removes after 3 denials)
+    const handleDenyReport = (reportId: string) => {
+        const DENIAL_THRESHOLD = 3;
+        const updated = reports
+            .map((r) => (r.id === reportId ? { ...r, denials: r.denials + 1 } : r))
+            .filter((r) => r.denials < DENIAL_THRESHOLD);
+        setReports(updated);
+        localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(updated));
+    };
+    // ========== END REPORTING FEATURE ==========
+
+    // Confirm / deny handlers used by the dialog (logic identical to original MapView)
+    const handleConfirm = () => {
+        if (selectedReport) {
+            handleConfirmReport(selectedReport.id);
+            setSelectedReport(null);
+        }
+    };
+
+    const handleDeny = () => {
+        if (selectedReport) {
+            handleDenyReport(selectedReport.id);
+            setSelectedReport(null);
+        }
+    };
 
     const sortedRoutes = [...routes].sort((a, b) => {
         if (sortBy === 'time') {
@@ -715,6 +780,55 @@ function Index() {
                         </MapContainer>
                     </div>
                 </div>
+
+                {/* ========== WAZE-LIKE REPORT BUTTON ========== */}
+                <div className="absolute bottom-8 right-6 z-[400]">
+                    <ReportButton reports={reports} onReportsChange={setReports} />
+                </div>
+
+                {/* ========== REPORT DETAIL DIALOG (from original MapView) ========== */}
+                <Dialog
+                    open={!!selectedReport}
+                    onOpenChange={(open) => !open && setSelectedReport(null)}
+                >
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-3">
+                                <span className="text-2xl">{selectedReport?.icon}</span>
+                                {selectedReport?.label}
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4 space-y-4">
+                            {selectedReport?.details && (
+                                <div className="space-y-2">
+                                    <p className="text-sm font-medium text-foreground">Details</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {selectedReport.details}
+                                    </p>
+                                </div>
+                            )}
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span>👍</span>
+                                <span>
+                                    {selectedReport?.confirmations} confirmation
+                                    {selectedReport && selectedReport.confirmations !== 1
+                                        ? "s"
+                                        : ""}
+                                </span>
+                            </div>
+                        </div>
+                        <DialogFooter className="flex gap-3 sm:gap-3">
+                            <Button variant="outline" onClick={handleDeny} className="flex-1">
+                                <span className="mr-2">👎</span>
+                                Not there
+                            </Button>
+                            <Button onClick={handleConfirm} className="flex-1">
+                                <span className="mr-2">👍</span>
+                                Still there
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </SidebarInset>
         </SidebarProvider>
     )

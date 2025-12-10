@@ -46,7 +46,7 @@ export function useGoogleMaps(apiKey: string) {
            setIsLoaded(true);
        } else {
            script.addEventListener('load', () => setIsLoaded(true));
-           script.addEventListener('error', (e) => setLoadError(new Error("Failed to load Google Maps script")));
+           script.addEventListener('error', () => setLoadError(new Error("Failed to load Google Maps script")));
        }
     }
   }, [apiKey]);
