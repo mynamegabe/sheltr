@@ -22,7 +22,6 @@ export interface Report {
     id: string;
     type: string;
     label: string;
-    icon: any;
     timestamp: number;
     confirmations: number;
     denials: number;
@@ -99,7 +98,6 @@ const ReportButton: React.FC<ReportButtonProps> = ({ reports, onReportsChange })
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             type: selectedReportType.type,
             label: selectedReportType.label,
-            icon: selectedReportType.icon,
             timestamp: Date.now(),
             confirmations: 1,
             denials: 0,

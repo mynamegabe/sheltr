@@ -44,7 +44,7 @@ import { PlacesAutocomplete } from "@/components/places-autocomplete"
 import { ModeToggle } from "@/components/mode-toggle"
 import { useTheme } from "@/components/theme-provider"
 
-import ReportButton from "@/components/ReportButton";
+import ReportButton, { REPORT_TYPES } from "@/components/ReportButton";
 import type { Report } from "@/components/ReportButton";
 
 import {
@@ -760,6 +760,34 @@ function Index() {
                                 )
                             })}
 
+                            {/* Render Report Markers */}
+                            {reports.map((report) => {
+                                const reportType = REPORT_TYPES.find((t) => t.type === report.type);
+                                if (!reportType) return null;
+
+                                const iconHtml = renderToStaticMarkup(
+                                    <div className="relative flex items-center justify-center w-8 h-8 bg-white rounded-full shadow-md border-2" style={{ borderColor: reportType.color }}>
+                                        <reportType.icon className="w-5 h-5" style={{ color: reportType.color }} />
+                                    </div>
+                                );
+
+                                return (
+                                    <Marker
+                                        key={report.id}
+                                        position={[report.coordinates[1], report.coordinates[0]]}
+                                        icon={L.divIcon({
+                                            className: 'bg-transparent',
+                                            html: iconHtml,
+                                            iconSize: [32, 32],
+                                            iconAnchor: [16, 16]
+                                        })}
+                                        eventHandlers={{
+                                            click: () => setSelectedReport(report)
+                                        }}
+                                    />
+                                );
+                            })}
+
                             {coords && (
                                 <Marker
                                     position={[coords.latitude, coords.longitude]}
@@ -794,7 +822,12 @@ function Index() {
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-3">
-                                <span className="text-2xl">{selectedReport?.icon}</span>
+                                <span className="text-2xl">
+                                    {(() => {
+                                        const rType = REPORT_TYPES.find(r => r.type === selectedReport?.type);
+                                        return rType ? <rType.icon className="w-6 h-6" style={{ color: rType.color }} /> : null;
+                                    })()}
+                                </span>
                                 {selectedReport?.label}
                             </DialogTitle>
                         </DialogHeader>
@@ -819,7 +852,12 @@ function Index() {
                         </div>
                         <DialogFooter className="flex gap-3 sm:gap-3">
                             <Button variant="outline" onClick={handleDeny} className="flex-1">
-                                <span className="mr-2">👎</span>
+                                <span className="text-2xl">
+                                    {(() => {
+                                        const rType = REPORT_TYPES.find(r => r.type === selectedReport?.type);
+                                        return rType ? <rType.icon className="w-6 h-6" style={{ color: rType.color }} /> : null;
+                                    })()}
+                                </span>
                                 Not there
                             </Button>
                             <Button onClick={handleConfirm} className="flex-1">
