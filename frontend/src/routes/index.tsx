@@ -644,7 +644,7 @@ function Index() {
 
             <WeatherForecast overrideCoords={originCoords} />
 
-            <SidebarInset className="relative h-screen overflow-hidden">
+            <SidebarInset className="relative h-[100dvh] overflow-hidden">
                 <FloatingTrigger />
 
 
@@ -682,7 +682,7 @@ function Index() {
 
                 <div className="absolute inset-0 w-full h-full">
                      {!isDesktop && selectedRouteIndex !== null && !visibleDetailsPanel && (
-                         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[400] animate-in slide-in-from-bottom-4 fade-in duration-300">
+                         <div className="absolute bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 z-[400] animate-in slide-in-from-bottom-4 fade-in duration-300">
                              <Button
                                  className="rounded-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90 px-6 h-12"
                                  onClick={() => setVisibleDetailsPanel(true)}
@@ -962,7 +962,7 @@ function Index() {
                     </div>
                 </div>
 
-                <div className="absolute bottom-8 right-6 z-[400] flex flex-col gap-3 items-end">
+                <div className="absolute bottom-20 md:bottom-8 right-6 z-[400] flex flex-col gap-3 items-end">
                     <Button
                         variant="default"
                         size="icon"
