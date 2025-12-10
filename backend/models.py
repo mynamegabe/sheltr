@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, BigInteger
 from database import Base
 import datetime
 import uuid
@@ -15,9 +15,13 @@ class Report(Base):
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     details = Column(String(500), nullable=True)
-    timestamp = Column(Integer, nullable=False) # Unix timestamp to match frontend
+    timestamp = Column(BigInteger, nullable=False) # Unix timestamp to match frontend
     confirmations = Column(Integer, default=1)
     denials = Column(Integer, default=0)
+
+    @property
+    def coordinates(self):
+        return [self.longitude, self.latitude]
 
 class AccessibilitySubmission(Base):
     __tablename__ = "accessibility_submissions"

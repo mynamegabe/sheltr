@@ -239,13 +239,12 @@ async def deny_report(report_id: str, db: Session = Depends(get_db)):
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
     
-    report.denials += 1
-    if report.denials >= 3:
-        # Delete? or just mark? Prompt didn't specify, but code previously removed it from list.
+    report.confirmations -= 1
+    if report.confirmations <= 0:
         db.delete(report)
         db.commit()
-        # Return the last state? Or 204? 
-        return convert_report_model_to_schema(report) # It's detached but data is there
+        # Return a dummy representation or the last state, but the ID is now invalid for future ops
+        return convert_report_model_to_schema(report)
     else:
         db.commit()
         db.refresh(report)

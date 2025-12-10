@@ -153,8 +153,8 @@ function Index() {
             // If it was removed, backend returned it? Or maybe we should check denials count.
 
             if (updatedReport) {
-                if (updatedReport.denials >= 3) {
-                    // Remove locally if backend says so (implied by high denials)
+                // Backend decrements confirmations. If <= 0, it deletes the report.
+                if (updatedReport.confirmations <= 0) {
                     setReports(prev => prev.filter(r => r.id !== reportId));
                 } else {
                     setReports(prev => prev.map(r => r.id === reportId ? updatedReport : r));
@@ -243,6 +243,15 @@ function Index() {
         userDecisionTimeout: 5000,
         watchPosition: true,
     });
+
+    // Auto-center on user location when available
+    const [hasCentered, setHasCentered] = useState(false);
+    useEffect(() => {
+        if (coords && !hasCentered) {
+            setMapCenter([coords.latitude, coords.longitude]);
+            setHasCentered(true);
+        }
+    }, [coords, hasCentered]);
 
     const handleRoute = async () => {
         setLoading(true)
