@@ -45,9 +45,9 @@ services:
       - "5173:5173"
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    # volumes:
+    #   - ./frontend:/app
+    #   - /app/node_modules
     # Ensure it can reach backend if doing SSR or build time fetch (not case here)
 
   nginx:

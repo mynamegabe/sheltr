@@ -11,5 +11,11 @@ EXPOSE 5173
 
 COPY .env.production .env
 
-# Host 0.0.0.0 is important for docker
-CMD ["npm", "run", "dev", "--", "--host"]
+# Install serve globally
+RUN npm install -g serve
+
+# Build the application
+RUN npm run build
+
+# Serve the 'dist' directory on port 5173
+CMD ["serve", "-s", "dist", "-l", "5173"]
