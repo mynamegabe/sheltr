@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from typing import List
 from fastapi import FastAPI
 import uvicorn
-from schemas import RouteRequest
+from schemas import RouteRequest, Report, ReportCreate
 from modules.sun_router import SunRouter
 from modules.weather_service import WeatherService
 
@@ -23,6 +23,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Filesystem Persistence for Reports ---
+import json
+REPORTS_FILE = "data/reports.json"
+
+def load_reports():
+    if not os.path.exists(REPORTS_FILE):
+        return []
+    try:
+        with open(REPORTS_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_reports(reports):
+    os.makedirs(os.path.dirname(REPORTS_FILE), exist_ok=True)
+    with open(REPORTS_FILE, "w") as f:
+        json.dump(reports, f, indent=2)
 
 # Initialize SunRouter
 api_key = os.getenv("GOOGLE_MAPS_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -164,6 +182,74 @@ weather_service = WeatherService()
 @app.get("/weather")
 async def get_weather(lat: float, lon: float):
     return weather_service.fetch_nearby_forecasts(lat, lon)
+
+# --- Report Endpoints ---
+
+@app.get("/reports", response_model=List[Report])
+async def get_reports():
+    return load_reports()
+
+@app.post("/reports", response_model=Report)
+async def create_report(report: ReportCreate):
+    reports = load_reports()
+    
+    # Create new report object
+    new_report = report.dict()
+    # Generate ID if not present (though frontend might handle temporary ID, backend should probably finalize it or accept it)
+    # The schema has ID in Report but not ReportCreate? 
+    # Wait, ReportCreate inherits ReportBase. Report inherits ReportBase + has ID.
+    # So we need to generate ID.
+    import uuid
+    new_report_id = str(uuid.uuid4())
+    
+    final_report = {
+        "id": new_report_id,
+        **new_report,
+        "confirmations": 1,
+        "denials": 0
+    }
+    
+    reports.append(final_report)
+    save_reports(reports)
+    return final_report
+
+@app.post("/reports/{report_id}/confirm", response_model=Report)
+async def confirm_report(report_id: str):
+    reports = load_reports()
+    for r in reports:
+        if r["id"] == report_id:
+            r["confirmations"] += 1
+            save_reports(reports)
+            return r
+    raise HTTPException(status_code=404, detail="Report not found")
+
+@app.post("/reports/{report_id}/deny", response_model=Report)
+async def deny_report(report_id: str):
+    reports = load_reports()
+    updated_reports = []
+    found = False
+    returned_report = None
+    
+    for r in reports:
+        if r["id"] == report_id:
+            found = True
+            r["denials"] += 1
+            if r["denials"] < 3:
+                updated_reports.append(r)
+                returned_report = r
+            else:
+                # Removed
+                returned_report = r # return it even if removed? Or raise 404? 
+                # Let's return it with status? Or just return success.
+                pass
+        else:
+            updated_reports.append(r)
+            
+    if not found:
+        raise HTTPException(status_code=404, detail="Report not found")
+        
+    save_reports(updated_reports)
+    return returned_report
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

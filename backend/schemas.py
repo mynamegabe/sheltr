@@ -12,3 +12,19 @@ class RouteRequest(BaseModel):
     prefer_shade: bool = Field(True, description="Whether to prioritize shady routes")
     routing_preference: Optional[str] = Field(None, description="Routing preference (e.g., TRAFFIC_AWARE, LESS_WALKING)")
     transit_preferences: Optional[Dict[str, Any]] = Field(None, description="Transit preferences dictionary")
+
+class ReportBase(BaseModel):
+    type: str
+    label: str
+    coordinates: List[float] # [lng, lat]
+    details: Optional[str] = None
+    timestamp: int
+
+class ReportCreate(ReportBase):
+    pass
+
+class Report(ReportBase):
+    id: str
+    confirmations: int = 1
+    denials: int = 0
+

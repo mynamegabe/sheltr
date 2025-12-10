@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useGeolocated } from "react-geolocated";
-import { AlertCircle, Loader2, TriangleAlert, Ban, Users, XCircle } from 'lucide-react';
+import { AlertCircle, Loader2, TriangleAlert, Ban, Users, XCircle, Footprints, Accessibility, ArrowUpFromDot, Grid2X2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Popover,
@@ -17,6 +17,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from "sonner"
+import axios from 'axios';
 
 export interface Report {
     id: string;
@@ -34,9 +35,12 @@ export const REPORT_TYPES = [
     { type: 'broken-lift', label: 'Broken Lift', icon: XCircle, color: '#ef4444' },
     { type: 'ramp-blocked', label: 'Ramp Blocked', icon: Ban, color: '#f97316' },
     { type: 'very-crowded', label: 'Crowd', icon: Users, color: '#8b5cf6' },
+    // New Accessibility Types
+    { type: 'accessible-path', label: 'Accessible Path', icon: Footprints, color: '#10b981' }, // Green
+    { type: 'ramp', label: 'Ramp Available', icon: Accessibility, color: '#3b82f6' }, // Blue
+    { type: 'elevator', label: 'Elevator Working', icon: ArrowUpFromDot, color: '#0ea5e9' }, // Sky
+    { type: 'tactile-paving', label: 'Tactile Paving', icon: Grid2X2, color: '#d946ef' }, // Fuschia
 ];
-
-const STORAGE_KEY = 'coolpath-reports';
 
 interface ReportButtonProps {
     reports: Report[];
@@ -48,6 +52,7 @@ const ReportButton: React.FC<ReportButtonProps> = ({ reports, onReportsChange })
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selectedReportType, setSelectedReportType] = useState<typeof REPORT_TYPES[0] | null>(null);
     const [reportDetails, setReportDetails] = useState('');
+    const [submitting, setSubmitting] = useState(false);
 
     const {
         coords,
@@ -91,33 +96,40 @@ const ReportButton: React.FC<ReportButtonProps> = ({ reports, onReportsChange })
         setIsOpen(false);
     };
 
-    const handleSubmitReport = () => {
+    const handleSubmitReport = async () => {
         if (!userLocation || !selectedReportType) return;
+        setSubmitting(true);
 
-        const newReport: Report = {
-            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            type: selectedReportType.type,
-            label: selectedReportType.label,
-            timestamp: Date.now(),
-            confirmations: 1,
-            denials: 0,
-            coordinates: userLocation,
-            details: reportDetails.trim() || undefined,
-        };
+        try {
+            const reportData = {
+                type: selectedReportType.type,
+                label: selectedReportType.label,
+                coordinates: userLocation,
+                details: reportDetails.trim() || undefined,
+                timestamp: Date.now(),
+            };
 
-        const updated = [...reports, newReport];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        onReportsChange(updated);
-        setDialogOpen(false);
-        setSelectedReportType(null);
-        setReportDetails('');
-        setDialogOpen(false);
-        setSelectedReportType(null);
-        setReportDetails('');
+            const response = await axios.post('http://localhost:8000/reports', reportData);
+            const newReport = response.data;
 
-        toast('Report submitted', {
-            description: `${selectedReportType.label} has been reported at your location.`,
-        });
+            onReportsChange([...reports, newReport]);
+
+            toast('Report submitted', {
+                description: `${selectedReportType.label} has been reported at your location.`,
+            });
+
+            setDialogOpen(false);
+            setSelectedReportType(null);
+            setReportDetails('');
+
+        } catch (error) {
+            console.error("Failed to submit report", error);
+            toast.error("Submission failed", {
+                description: "Could not submit report to server."
+            });
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -208,8 +220,8 @@ const ReportButton: React.FC<ReportButtonProps> = ({ reports, onReportsChange })
                         <Button variant="outline" onClick={() => setDialogOpen(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleSubmitReport}>
-                            Submit Report
+                        <Button onClick={handleSubmitReport} disabled={submitting}>
+                            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Submit Report"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

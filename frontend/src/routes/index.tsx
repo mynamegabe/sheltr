@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator"
 import {
     Sidebar,
     SidebarContent,
+    SidebarFooter,
     SidebarGroup,
     SidebarGroupContent,
     SidebarGroupLabel,
@@ -59,7 +60,7 @@ export const Route = createFileRoute('/')({
     component: Index,
 })
 
-const REPORTS_STORAGE_KEY = "coolpath-reports";
+
 
 // Helper to update map view
 function MapUpdater({ center, zoom }: { center: [number, number]; zoom: number }) {
@@ -99,6 +100,10 @@ function Index() {
     const [routes, setRoutes] = useState<any[]>([])
     const [selectedRouteIndex, setSelectedRouteIndex] = useState<number | null>(null)
 
+    // Visibility Toggles
+    const [showReports, setShowReports] = useState(true); // Obstacles, crowds, etc.
+    const [showAccessibility, setShowAccessibility] = useState(true); // Ramps, elevators, etc.
+
     // Travel Mode & Preferences
     const [travelMode, setTravelMode] = useState<'WALK' | 'TRANSIT'>('TRANSIT')
     const [allowedTransitModes, setAllowedTransitModes] = useState<string[]>([])
@@ -107,39 +112,60 @@ function Index() {
     const [sortBy, setSortBy] = useState<string>('time')
 
     // ========== WAZE-LIKE REPORTING FEATURE ==========
-    // Initialize reports from localStorage with 2-hour expiration filter
-    const [reports, setReports] = useState<Report[]>(() => {
-        const stored = localStorage.getItem(REPORTS_STORAGE_KEY);
-        if (stored) {
-            const parsed: Report[] = JSON.parse(stored);
-            // Filter out reports older than 2 hours
-            return parsed.filter(
-                (r) => Date.now() - r.timestamp < 2 * 60 * 60 * 1000
-            );
-        }
-        return [];
-    });
+    // Initialize reports from backend
+    const [reports, setReports] = useState<Report[]>([]);
+
+    useEffect(() => {
+        const fetchReports = async () => {
+            try {
+                const response = await axios.get('http://localhost:8000/reports');
+                setReports(response.data);
+            } catch (error) {
+                console.error("Failed to fetch reports", error);
+            }
+        };
+        fetchReports();
+    }, []);
 
     // Selected report for dialog (from original MapView)
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
     // Handler for report confirmations
-    const handleConfirmReport = (reportId: string) => {
-        const updated = reports.map((r) =>
-            r.id === reportId ? { ...r, confirmations: r.confirmations + 1 } : r
-        );
-        setReports(updated);
-        localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(updated));
+    const handleConfirmReport = async (reportId: string) => {
+        try {
+            const response = await axios.post(`http://localhost:8000/reports/${reportId}/confirm`);
+            const updatedReport = response.data;
+            setReports(prev => prev.map(r => r.id === reportId ? updatedReport : r));
+        } catch (error) {
+            console.error("Failed to confirm report", error);
+        }
     };
 
     // Handler for report denials (removes after 3 denials)
-    const handleDenyReport = (reportId: string) => {
-        const DENIAL_THRESHOLD = 3;
-        const updated = reports
-            .map((r) => (r.id === reportId ? { ...r, denials: r.denials + 1 } : r))
-            .filter((r) => r.denials < DENIAL_THRESHOLD);
-        setReports(updated);
-        localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(updated));
+    const handleDenyReport = async (reportId: string) => {
+        try {
+            const response = await axios.post(`http://localhost:8000/reports/${reportId}/deny`);
+            const updatedReport = response.data;
+
+            // If report is returned (not 404), update it. If it has high denials, it might be removed or flagged.
+            // Backend logic calculates denials. If < 3 it returns report.
+            // If it was removed, backend returned it? Or maybe we should check denials count.
+
+            if (updatedReport) {
+                if (updatedReport.denials >= 3) {
+                    // Remove locally if backend says so (implied by high denials)
+                    setReports(prev => prev.filter(r => r.id !== reportId));
+                } else {
+                    setReports(prev => prev.map(r => r.id === reportId ? updatedReport : r));
+                }
+            }
+        } catch (error) {
+            // If 404, maybe it was deleted?
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+                setReports(prev => prev.filter(r => r.id !== reportId));
+            }
+            console.error("Failed to deny report", error);
+        }
     };
     // ========== END REPORTING FEATURE ==========
 
@@ -551,6 +577,35 @@ function Index() {
                         </>
                     )}
                 </SidebarContent>
+                <SidebarFooter className="p-4 border-t border-sidebar-border bg-sidebar-accent/10">
+                    <div className="space-y-3">
+                        <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Map Layers</Label>
+                        <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="show-reports"
+                                    checked={showReports}
+                                    onCheckedChange={(c) => setShowReports(!!c)}
+                                />
+                                <Label htmlFor="show-reports" className="text-sm cursor-pointer flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                                    Show Reports
+                                </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="show-access"
+                                    checked={showAccessibility}
+                                    onCheckedChange={(c) => setShowAccessibility(!!c)}
+                                />
+                                <Label htmlFor="show-access" className="text-sm cursor-pointer flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                    Show Accessibility
+                                </Label>
+                            </div>
+                        </div>
+                    </div>
+                </SidebarFooter>
             </Sidebar>
 
             <WeatherForecast overrideCoords={originCoords} />
@@ -764,6 +819,11 @@ function Index() {
                             {reports.map((report) => {
                                 const reportType = REPORT_TYPES.find((t) => t.type === report.type);
                                 if (!reportType) return null;
+
+                                const isAccessibility = ['accessible-path', 'ramp', 'elevator', 'tactile-paving'].includes(report.type);
+
+                                if (isAccessibility && !showAccessibility) return null;
+                                if (!isAccessibility && !showReports) return null;
 
                                 const iconHtml = renderToStaticMarkup(
                                     <div className="relative flex items-center justify-center w-8 h-8 bg-white rounded-full shadow-md border-2" style={{ borderColor: reportType.color }}>

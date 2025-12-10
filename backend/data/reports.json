@@ -1,0 +1,28 @@
+[
+  {
+    "id": "e63de1f4-0e1e-414c-97bb-ef3c597f44fc",
+    "type": "ramp",
+    "label": "Ramp Available",
+    "coordinates": [
+      103.7664256,
+      1.3664256
+    ],
+    "details": null,
+    "timestamp": 1765353030660,
+    "confirmations": 1,
+    "denials": 0
+  },
+  {
+    "id": "e8c2e71f-f144-4d4b-8313-c0b2c4fb66af",
+    "type": "broken-lift",
+    "label": "Broken Lift",
+    "coordinates": [
+      103.7664256,
+      1.3664256
+    ],
+    "details": null,
+    "timestamp": 1765353063683,
+    "confirmations": 1,
+    "denials": 0
+  }
+]
