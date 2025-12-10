@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css'
 import axios from 'axios'
 import clsx from 'clsx'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Search, MapPin, Navigation, Sun, Clock, Ruler, ArrowUpDown, Bus, Footprints, Train, TramFront} from 'lucide-react'
+import { Search, MapPin, Navigation, Sun, Clock, Ruler, ArrowUpDown, Bus, Footprints, Train, TramFront } from 'lucide-react'
 import { DateTimePicker } from "@/components/date-time"
 import { RouteSteps } from "@/components/route-steps"
 import { WeatherForecast } from '../components/weather-forecast'
@@ -72,7 +72,7 @@ function FloatingTrigger() {
 
     return (
         <div className="absolute top-4 left-4 z-[500] animate-in fade-in duration-300">
-            <SidebarTrigger className="bg-white/90 backdrop-blur shadow-md border hover:bg-white dark:bg-neutral-200 dark:border-neutral-700 dark:hover:bg-neutral-700" />
+            <SidebarTrigger className="bg-white/90 backdrop-blur shadow-md border hover:bg-white dark:bg-neutral-200 dark:border-neutral-700 dark:hover:bg-neutral-700 h-12 w-12" />
         </div>
     )
 }
@@ -241,8 +241,8 @@ function Index() {
         return poly
     }
 
-    const [originCoords, setOriginCoords] = useState<{lat: number, lon: number} | null>(null);
-    
+    const [originCoords, setOriginCoords] = useState<{ lat: number, lon: number } | null>(null);
+
     return (
         <SidebarProvider>
             <Sidebar>
@@ -271,20 +271,20 @@ function Index() {
                                         <PlacesAutocomplete
                                             className="bg-background"
                                             defaultValue={origin}
-                                            onPlaceSelect={(place) => 
-                                                {setOrigin(place.address);
+                                            onPlaceSelect={(place) => {
+                                                setOrigin(place.address);
                                                 if (place.latLng) {
-                                                setOriginCoords({ 
-                                                    lat: place.latLng.lat, 
-                                                    lon: place.latLng.lng 
-                                                });
+                                                    setOriginCoords({
+                                                        lat: place.latLng.lat,
+                                                        lon: place.latLng.lng
+                                                    });
                                                 }
-                                                }}
+                                            }}
                                             placeholder="Enter origin..."
                                             showCurrentLocation={true}
                                             onCurrentLocationSelect={() => {
                                                 setOrigin("My Location");
-                                            setOriginCoords(null);
+                                                setOriginCoords(null);
                                             }}
                                         />
                                     </div>
@@ -496,8 +496,8 @@ function Index() {
 
                 {selectedRouteIndex !== null && routes[selectedRouteIndex] && (
                     <div className="absolute top-0 left-0 bottom-0 z-[5] h-full shadow-2xl animate-in slide-in-from-left-10 fade-in duration-300">
-                        <RouteSteps 
-                            route={routes[selectedRouteIndex]} 
+                        <RouteSteps
+                            route={routes[selectedRouteIndex]}
                             onClose={() => setSelectedRouteIndex(null)}
                         />
                     </div>
@@ -642,12 +642,12 @@ function Index() {
                                             <Polygon
                                                 key={`nearby-${sIdx}`}
                                                 positions={decodePolyline(encoded)}
-                                                
-                                                pathOptions={{ 
-                                                    color: "transparent", 
-                                                    fillColor: "#22d3ee", 
-                                                    fillOpacity: 1, 
-                                                    weight: 1 
+
+                                                pathOptions={{
+                                                    color: "transparent",
+                                                    fillColor: "#22d3ee",
+                                                    fillOpacity: 1,
+                                                    weight: 1
                                                 }}
                                             />
                                         ))}
