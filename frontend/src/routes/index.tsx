@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css'
 import axios from 'axios'
 import clsx from 'clsx'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Search, MapPin, Navigation, Sun, Clock, Ruler, ArrowUpDown, Bus, Footprints, Train, TramFront } from 'lucide-react'
+import { Search, MapPin, Navigation, Sun, Clock, Ruler, ArrowUpDown, Bus, Footprints, Train, TramFront, Locate } from 'lucide-react'
 import { DateTimePicker } from "@/components/date-time"
 import { RouteSteps } from "@/components/route-steps"
 import { WeatherForecast } from '../components/weather-forecast'
@@ -810,7 +810,21 @@ function Index() {
                 </div>
 
                 {/* ========== WAZE-LIKE REPORT BUTTON ========== */}
-                <div className="absolute bottom-8 right-6 z-[400]">
+                <div className="absolute bottom-8 right-6 z-[400] flex flex-col gap-3 items-end">
+                    <Button
+                        variant="default"
+                        size="icon"
+                        className="h-12 w-12 rounded-full shadow-lg bg-white hover:bg-gray-100 text-primary dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:text-white"
+                        onClick={() => {
+                            if (coords) {
+                                setMapCenter([coords.latitude, coords.longitude])
+                            } else {
+                                alert("Location not available yet")
+                            }
+                        }}
+                    >
+                        <Locate className="w-6 h-6" />
+                    </Button>
                     <ReportButton reports={reports} onReportsChange={setReports} />
                 </div>
 
