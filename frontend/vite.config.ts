@@ -22,6 +22,6 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    allowedHosts: ['localhost', '127.0.0.1', '0.0.0.0', '192.168.1.127', "6c1fd867943e.ngrok-free.app"],
+    allowedHosts: ['localhost', '127.0.0.1', '0.0.0.0', '192.168.1.127', "sheltr.gabrielseet.com"],
   },
 })
